@@ -42,3 +42,9 @@ Reset
 minikube delete
 minikube start
 ```
+
+
+## Problem:
+KafkaConnect pod keep toggling
+## Solution:
+Check the IP for the image registry in the KafkaConnect YAML file as it may fail to locate and push the image to wrong registry

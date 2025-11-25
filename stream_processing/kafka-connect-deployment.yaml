@@ -1,4 +1,4 @@
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaConnect
 metadata:
   name: debezium-connect-cluster
@@ -29,10 +29,16 @@ spec:
     config.storage.replication.factor: -1
     offset.storage.replication.factor: -1
     status.storage.replication.factor: -1
+  groupId: connect-cluster
+  configStorageTopic: connect-cluster-configs
+  offsetStorageTopic: connect-cluster-offsets
+  statusStorageTopic: connect-cluster-status
   build:
     output:
       type: docker
-      image: 10.106.182.240/debezium-connect-postgres:latest
+      #Replace with the registry to push image. If running with minikube with registry addon, get IP by running:
+      #kubectl -n kube-system get svc registry -o jsonpath='{.spec.clusterIP}'
+      image: 10.101.37.168/debezium-connect-postgres:latest
     plugins:
       - name: debezium-postgres-connector
         artifacts:

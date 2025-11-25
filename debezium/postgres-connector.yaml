@@ -19,9 +19,9 @@ spec:
     topic.prefix: postgres
     plugin.name: pgoutput
     
-    table.include.list: public.customers
+    table.include.list: public.logs
     schema.history.internal.kafka.bootstrap.servers: debezium-cluster-kafka-bootstrap:9092
-    schema.history.internal.kafka.topic: schema-changes.customers
+    schema.history.internal.kafka.topic: schema-changes.logs
 
     transforms: unwrap
     transforms.unwrap.type: io.debezium.transforms.ExtractNewRecordState
