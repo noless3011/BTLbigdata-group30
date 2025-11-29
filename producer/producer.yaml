@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-producer
+  labels:
+    app: log-producer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-producer
+  template:
+    metadata:
+      labels:
+        app: log-producer
+    spec:
+      containers:
+        - name: log-producer
+          image: tienuv1/producer:latest
+          imagePullPolicy: Always
+          # Optional: restart if producer exits

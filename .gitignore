@@ -4,8 +4,10 @@ venv/
 
 notebooks/fake_data.ipynb
 
-data/standard_log.csv
-data/logs_20251121-0919.csv
-data/logstore_standard_log_anonymized_no_duplicates.csv
-
+data/*.csv
 cdc/data
+**/data/
+
+
+__pycache__
+
