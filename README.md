@@ -67,19 +67,124 @@ BTLbigdata-group30/
 
 ## 🚀 Quick Start for Kafka Team
 
-```powershell
-# 1. Start Kafka
-docker-compose up -d zookeeper kafka
+---
 
-# 2. Install Python dependencies
-pip install kafka-python pyspark
+## 🛠 Installation & Setup Instructions
 
-# 3. Run your first Kafka app
-cd kafka/01-basic-producer-consumer
-python producer.py  # Terminal 1
-python consumer.py  # Terminal 2
+Follow these steps strictly in order to set up the Lambda Architecture environment.
 
-# 4. See messages flowing!
+### 1. Prerequisites
+
+- **Python 3.8 - 3.11** (Avoid 3.12+ for now due to PySpark compatibility).
+- **Docker Desktop** (Running).
+- **Amazon Corretto JDK 8 or 11** installed (Ensure `JAVA_HOME` is set automatically by the installer).
+
+### 2. Python Environment Setup
+
+Create a virtual environment to keep dependencies isolated.
+
+**Windows:**
+
+```bash
+python -m venv venv
+.\venv\Scripts\activate
+```
+
+**Mac/Linux:**
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+**Install Dependencies:**
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Network Configuration (Crucial)
+
+You must map the Docker container hostnames to your local machine so PySpark can talk to HDFS and Kafka.
+
+**Windows:**
+Open Notepad as Administrator and edit: `C:\Windows\System32\drivers\etc\hosts`
+
+**Mac/Linux:**
+Open Terminal and edit: `sudo nano /etc/hosts`
+
+**Add this line to the bottom of the file:**
+
+```text
+127.0.0.1 namenode datanode kafka
+```
+
+### 4. Start Infrastructure (Docker)
+
+Spin up Zookeeper, Kafka, and Hadoop (HDFS).
+
+```bash
+docker-compose up -d
+```
+
+> ⏳ **Wait 1-2 minutes** after this command for the NameNode and DataNode to fully initialize (Safemode OFF).
+
+---
+
+## 🚀 Execution Guide (Pipeline Order)
+
+Open multiple terminal tabs/windows to run the components of the Lambda Architecture.
+
+#### Terminal 1: Data Source (Simulation)
+
+Start generating fake events to Kafka. Keep this running.
+
+```bash
+python producer.py
+```
+
+#### Terminal 2: Speed Layer (Real-time)
+
+Process data directly from Kafka streams.
+
+```bash
+python stream_layer.py
+```
+
+#### Terminal 3: Ingest Layer (Data Lake)
+
+Capture data from Kafka and save it to HDFS (Simulating "Immutable Master Data").
+
+```bash
+python ingest_layer.py
+```
+
+> _Note: Let this run for 10-20 seconds to capture enough data, then stop it (Ctrl+C). It should automatically upload the data to HDFS._
+
+#### Terminal 4: Batch Layer (Historical Processing)
+
+Once data is on HDFS (from the previous step), run the batch job to create pre-computed views (Parquet files).
+
+```bash
+python batch_layer.py
+```
+
+#### Terminal 5: Serving Layer (Query)
+
+Query the final unified view (merging Batch Views + Real-time Views).
+
+```bash
+python serving_layer.py
+```
+
+---
+
+### 🧹 Cleanup
+
+To stop the containers and free up resources:
+
+```bash
+docker-compose down
 ```
 
 ---
