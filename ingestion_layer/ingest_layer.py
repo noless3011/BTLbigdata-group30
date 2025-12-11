@@ -9,17 +9,18 @@ spark = SparkSession.builder \
     .config("spark.hadoop.dfs.client.use.datanode.hostname", "true") \
     .getOrCreate()
 
-# Read from Kafka
+# Read from Kafka - Subscribe to all 6 event topics
 # Use "localhost:9092" for local execution, "kafka:29092" for Docker execution
 df = spark.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "localhost:9092") \
-    .option("subscribe", "course_topic,auth_topic,assessment_topic,video_topic,profile_topic") \
+    .option("subscribe", "auth_topic,assessment_topic,video_topic,course_topic,profile_topic,notification_topic") \
     .option("startingOffsets", "earliest") \
     .load()
 
 # Write Raw Data to HDFS (Append mode) using Checkpointing
-# We cast key and value to STRING to store them as raw text/json in Parquet
+# Store raw JSON events as-is, no transformation at ingestion layer
+# Partitioned by topic for efficient querying in batch layer
 query = df.selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)", "topic", "timestamp") \
     .writeStream \
     .format("parquet") \
@@ -29,5 +30,13 @@ query = df.selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)", "topic", "
     .trigger(processingTime="1 minute") \
     .start()
 
-print("Ingestion Job Started...")
+print("="*60)
+print("INGESTION LAYER - Kafka to HDFS")
+print("="*60)
+print("Topics: auth, assessment, video, course, profile, notification")
+print("Destination: hdfs://namenode:9000/data/master_dataset/")
+print("Checkpoint: hdfs://namenode:9000/checkpoints/ingest/")
+print("Partitioning: By topic")
+print("Trigger: Every 1 minute")
+print("="*60)
 query.awaitTermination()

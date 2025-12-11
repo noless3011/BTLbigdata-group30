@@ -1,200 +1,475 @@
-# BTLbigdata-group30
+# BTLbigdata-group30 - University Learning Analytics System
 
-Hệ thống thu thập, lưu trữ, phân tích và xử lý kết quả học tập của sinh viên để dự đoán điểm số
-
-## 📋 Tuần 5 - Phân chia công việc
-
-### Ingestion Layer
-
-- **Kafka streaming**: Thịnh, Phú, Tiến
-- **Batch ingestion to HDFS**: Lâm, Lộc
-
-**Mục tiêu**: Trong 1 tuần phải xong ingestion layer
+Lambda Architecture implementation for student learning analytics with Kafka, Spark, and MinIO.
 
 ---
 
-## 📚 Kafka Learning Resources
-
-### For Streaming Team (Thịnh, Phú, Tiến)
-
-**Start Here**: [`kafka/README.md`](kafka/README.md)
-
-**Learning Path** (1 week):
-
-1. **Day 1-2**: Understand Kafka basics (`kafka/README.md` sections 1-2)
-2. **Day 3-4**: Complete tutorials (`kafka/01-basic-producer-consumer/`, `kafka/02-json-messages/`)
-3. **Day 5-6**: Implement project examples (`kafka/project-examples/`)
-4. **Day 7**: Integration testing & documentation
-
-**Key Files**:
-
-- 📖 `kafka/README.md` - Complete learning guide
-- 🎯 `kafka/01-basic-producer-consumer/` - Your first Kafka app
-- 📊 `kafka/02-json-messages/` - Working with structured data
-- 🚀 `kafka/project-examples/` - Production-ready code for our project
-
-**What You'll Build**:
-
-- Student activity producer (send events to Kafka)
-- Spark Structured Streaming consumer (process events in real-time)
-- Integration with MongoDB (store processed data)
-
----
-
-## 🗂️ Project Structure
+## 📁 Project Structure (Reorganized)
 
 ```
 BTLbigdata-group30/
-├── kafka/                          # Kafka learning & examples (NEW!)
-│   ├── README.md                   # Complete Kafka guide
-│   ├── 01-basic-producer-consumer/ # Tutorial 1
-│   ├── 02-json-messages/           # Tutorial 2
-│   ├── 03-partitions/              # Tutorial 3 (coming soon)
-│   ├── 04-consumer-groups/         # Tutorial 4 (coming soon)
-│   └── project-examples/           # Production code
-│       ├── student_activity_producer.py
-│       ├── attendance_producer.py
-│       └── spark_streaming_consumer.py
+├── ingestion_layer/                # Kafka → Storage Ingestion
+│   ├── producer.py                # Event generator (6 categories)
+│   ├── ingest_layer.py           # Kafka → HDFS ingestion (local)
+│   ├── minio_ingest.py           # Kafka → MinIO ingestion
+│   ├── minio_ingest_k8s.py       # Kafka → MinIO (Kubernetes)
+│   ├── Dockerfile.ingestion       # Docker image for ingestion
+│   └── README.md                  # Ingestion layer documentation
 │
-├── generate_fake_data/             # Data generation (existing)
-├── problem-definition.md           # Project requirements
-├── architecture-design.md          # System architecture
-├── deployment-guide.md             # Setup instructions
-└── docker-compose.yml              # Local development environment
+├── batch_layer/                    # Batch Processing Layer ✅
+│   ├── jobs/                      # PySpark batch jobs (5 jobs)
+│   │   ├── auth_batch_job.py     # Authentication analytics
+│   │   ├── assessment_batch_job.py    # Assessment analytics
+│   │   ├── video_batch_job.py    # Video engagement analytics
+│   │   ├── course_batch_job.py   # Course interaction analytics
+│   │   └── profile_notification_batch_job.py
+│   ├── oozie/                     # Oozie orchestration
+│   │   ├── workflow.xml          # Parallel job workflow
+│   │   ├── coordinator.xml       # Daily scheduler
+│   │   └── job.properties        # Oozie configuration
+│   ├── config.py                  # Centralized config
+│   ├── run_batch_jobs.py         # Manual runner
+│   ├── deploy_oozie.sh/.ps1      # Deployment scripts
+│   ├── README.md                  # Complete documentation
+│   ├── QUICKSTART.md              # Quick start guide
+│   └── IMPLEMENTATION_SUMMARY.md  # Implementation summary
+│
+├── speed_layer/                    # Real-Time Stream Processing ⏳
+│   ├── stream_layer.py           # Real-time processor (TBD)
+│   └── README.md                  # Speed layer documentation
+│
+├── serving_layer/                  # Unified Query Interface ⏳
+│   ├── serving_layer.py          # Query service (TBD)
+│   └── README.md                  # Serving layer documentation
+│
+├── kafka/                          # Kafka Kubernetes configs
+│   ├── deployment.yaml            # Kafka cluster (3 nodes)
+│   ├── topics.yaml                # Topic definitions (6 topics)
+│   ├── storage-class.yaml         # Storage configuration
+│   ├── persistent-volumn.yaml     # Multi-node PVs
+│   └── persistent-volumn-minikube.yaml
+│
+├── minio/                          # MinIO deployment
+│   └── deployment.yaml            # S3-compatible storage
+│
+├── spark/                          # Spark jobs
+│   └── ingestion-job.yaml         # Ingestion K8s job
+│
+├── deployment/                     # Deployment scripts & guides
+│   ├── deploy_minikube.ps1       # Auto-deploy to Minikube
+│   ├── cleanup_minikube.ps1      # Cleanup Minikube
+│   ├── MINIKUBE_TESTING_GUIDE.md # Complete testing guide
+│   ├── MINIKUBE_QUICK_REFERENCE.md
+│   ├── TESTING_COMPARISON.md     # Local vs Minikube
+│   └── TESTING_WORKFLOW.md       # Testing workflows
+│
+├── config/                         # Configuration files
+│   ├── docker-compose.yml         # Local development setup
+│   ├── hadoop.env                 # Hadoop configuration
+│   └── requirements.txt           # Python dependencies
+│
+├── docs/                           # Documentation
+│   ├── event-schema-specification.md  # Event schemas
+│   ├── architecture-design.md     # System architecture
+│   ├── problem-definition.md      # Project requirements
+│   └── deployment-guide.md        # Setup instructions
+│
+├── batch_layer.py                  # DEPRECATED (moved to batch_layer/)
+├── generate_fake_data.ipynb       # Data generation notebook
+└── README.md                       # This file
 ```
 
 ---
 
-## 🚀 Quick Start for Kafka Team
+## 🏗️ Lambda Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      DATA SOURCES                                │
+│            (Student Learning Events - 6 Categories)              │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                   INGESTION LAYER (Kafka)                        │
+│  Producer → Kafka Topics → MinIO (Raw Events)                    │
+└────────┬────────────────────────────────────┬───────────────────┘
+         ↓                                     ↓
+┌────────────────────────┐        ┌───────────────────────────────┐
+│   BATCH LAYER ✅       │        │   SPEED LAYER ⏳              │
+│   (Historical Data)    │        │   (Real-Time Data)            │
+│                        │        │                               │
+│ • Oozie Scheduler      │        │ • Spark Streaming             │
+│ • 5 PySpark Jobs       │        │ • Windowed Aggregations       │
+│ • 37 Batch Views       │        │ • Incremental Updates         │
+│ • Daily Processing     │        │ • Low Latency (seconds)       │
+└────────┬───────────────┘        └───────────┬───────────────────┘
+         │                                     │
+         └──────────────┬──────────────────────┘
+                        ↓
+         ┌──────────────────────────────────┐
+         │     SERVING LAYER ⏳             │
+         │  (Unified Query Interface)       │
+         │                                  │
+         │  Batch Views + Speed Views       │
+         │  REST API / Query Service        │
+         └──────────────────────────────────┘
+```
+
+**Legend**:
+- ✅ **Complete** - Fully implemented and tested
+- ⏳ **Planned** - Next implementation phase
 
 ---
 
-## 🛠 Installation & Setup Instructions
+## 🎯 Implementation Status
 
-Follow these steps strictly in order to set up the Lambda Architecture environment.
+| Layer | Status | Components | Batch Views |
+|-------|--------|------------|-------------|
+| **Ingestion** | ✅ Complete | 4 scripts, 6 Kafka topics | - |
+| **Batch Layer** | ✅ Complete | 5 PySpark jobs, Oozie orchestration | 37 views |
+| **Speed Layer** | ⏳ Planned | Real-time stream processing | TBD |
+| **Serving Layer** | ⏳ Planned | Query API, view merger | TBD |
 
-### 1. Prerequisites
+---
 
-- **Python 3.8 - 3.11** (Avoid 3.12+ for now due to PySpark compatibility).
-- **Docker Desktop** (Running).
-- **Amazon Corretto JDK 8 or 11** installed (Ensure `JAVA_HOME` is set automatically by the installer).
+## 🚀 Quick Start
 
-### 2. Python Environment Setup
+### Prerequisites
 
-Create a virtual environment to keep dependencies isolated.
+- Python 3.8-3.11
+- Docker Desktop
+- Apache Spark 3.5.0
+- Kafka (via Docker Compose or Minikube)
+- MinIO (via Docker Compose or Minikube)
 
-**Windows:**
+### Option 1: Local Development (Docker Compose)
 
-```bash
-python -m venv venv
-.\venv\Scripts\activate
-```
-
-**Mac/Linux:**
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-**Install Dependencies:**
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Network Configuration (Crucial)
-
-You must map the Docker container hostnames to your local machine so PySpark can talk to HDFS and Kafka.
-
-**Windows:**
-Open Notepad as Administrator and edit: `C:\Windows\System32\drivers\etc\hosts`
-
-**Mac/Linux:**
-Open Terminal and edit: `sudo nano /etc/hosts`
-
-**Add this line to the bottom of the file:**
-
-```text
-127.0.0.1 namenode datanode kafka
-```
-
-### 4. Start Infrastructure (Docker)
-
-Spin up Zookeeper, Kafka, and Hadoop (HDFS).
-
-```bash
+1. **Start infrastructure**:
+```powershell
+cd config
 docker-compose up -d
 ```
 
-> ⏳ **Wait 1-2 minutes** after this command for the NameNode and DataNode to fully initialize (Safemode OFF).
+2. **Generate events**:
+```powershell
+python ingestion_layer/producer.py
+```
+
+3. **Ingest to MinIO**:
+```powershell
+python ingestion_layer/minio_ingest.py
+```
+
+4. **Run batch processing**:
+```powershell
+python batch_layer/run_batch_jobs.py s3a://bucket-0/master_dataset s3a://bucket-0/batch_views
+```
+
+### Option 2: Minikube (Kubernetes)
+
+1. **Deploy to Minikube**:
+```powershell
+cd deployment
+.\deploy_minikube.ps1
+```
+
+2. **Port forward services**:
+```powershell
+# Terminal 1: Kafka
+kubectl port-forward service/kafka-cluster-kafka-bootstrap 9092:9092 -n kafka
+
+# Terminal 2: MinIO
+kubectl port-forward service/minio 9000:9000 -n minio
+```
+
+3. **Run ingestion**:
+```powershell
+python ingestion_layer/producer.py
+python ingestion_layer/minio_ingest_k8s.py
+```
+
+4. **Deploy Oozie batch jobs**:
+```powershell
+cd batch_layer
+.\deploy_oozie.ps1
+oozie job -oozie http://localhost:11000/oozie -config oozie/job.properties -run
+```
+
+**📚 Detailed Guides**:
+- [Ingestion Layer README](ingestion_layer/README.md)
+- [Batch Layer README](batch_layer/README.md)
+- [Batch Layer Quick Start](batch_layer/QUICKSTART.md)
+- [Minikube Testing Guide](deployment/MINIKUBE_TESTING_GUIDE.md)
 
 ---
 
-## 🚀 Execution Guide (Pipeline Order)
+## 📊 Event Schema
 
-Open multiple terminal tabs/windows to run the components of the Lambda Architecture.
+The system captures **6 event categories** with **30+ event types**:
 
-#### Terminal 1: Data Source (Simulation)
+1. **Authentication** (`auth_topic`) - Login, Logout, Signup
+2. **Assessment** (`assessment_topic`) - Assignments, Quizzes, Grading
+3. **Video** (`video_topic`) - Video watching behavior
+4. **Course** (`course_topic`) - Enrollments, Materials, Downloads
+5. **Profile** (`profile_topic`) - Profile updates, Avatar changes
+6. **Notification** (`notification_topic`) - Notification delivery & engagement
 
-Start generating fake events to Kafka. Keep this running.
+**Complete specification**: [docs/event-schema-specification.md](docs/event-schema-specification.md)
 
-```bash
-python producer.py
+---
+
+## 🔧 Configuration
+
+### MinIO Configuration
+- **Endpoint**: `http://minio:9000`
+- **Console**: `http://localhost:9001`
+- **Credentials**: `minioadmin / minioadmin`
+
+### Kafka Configuration
+- **Bootstrap Server**: `localhost:9092`
+- **Topics**: 6 topics (auth, assessment, video, course, profile, notification)
+
+### Spark Configuration
+- **Executor Memory**: 4GB
+- **Executor Cores**: 2
+- **Executors**: 3
+
+Edit configurations in:
+- `config/docker-compose.yml` - Local development
+- `batch_layer/config.py` - Batch processing
+- `batch_layer/oozie/job.properties` - Oozie jobs
+
+---
+
+## 📦 Batch Views (37 Total)
+
+### Authentication (5 views)
+- Daily active users (DAU)
+- Hourly login patterns
+- User session metrics
+- Activity summary
+- Registration analytics
+
+### Assessment (7 views)
+- Student submissions
+- Engagement timeline
+- Quiz performance
+- Grading statistics
+- Teacher workload
+- Submission distribution
+- Overall performance
+
+### Video (7 views)
+- Total watch time
+- Student engagement
+- Video popularity
+- Daily engagement
+- Course metrics
+- Student-course summary
+- Drop-off indicators
+
+### Course (8 views)
+- Enrollment stats
+- Material access patterns
+- Material popularity
+- Download analytics
+- Resource download stats
+- Activity summary
+- Daily engagement
+- Overall metrics
+
+### Profile & Notification (10 views)
+- Profile update frequency
+- Field changes
+- Avatar changes
+- Profile activity
+- Notification delivery stats
+- Engagement metrics
+- Click-through rates
+- User preferences
+- Daily activity
+- User summary
+
+**Full documentation**: [batch_layer/README.md](batch_layer/README.md)
+
+---
+
+## 🧪 Testing
+
+### Test Ingestion Layer
+```powershell
+# Start infrastructure
+cd config
+docker-compose up -d
+
+# Run producer and ingestion
+python ingestion_layer/producer.py
+python ingestion_layer/minio_ingest.py
+
+# Verify in MinIO Console: http://localhost:9001
 ```
 
-#### Terminal 2: Speed Layer (Real-time)
+### Test Batch Layer
+```powershell
+# Run all batch jobs
+python batch_layer/run_batch_jobs.py s3a://bucket-0/master_dataset s3a://bucket-0/batch_views
 
-Process data directly from Kafka streams.
-
-```bash
-python stream_layer.py
+# Run specific job
+python batch_layer/run_batch_jobs.py video s3a://bucket-0/master_dataset s3a://bucket-0/batch_views
 ```
 
-#### Terminal 3: Ingest Layer (Data Lake)
+### Test on Minikube
+```powershell
+cd deployment
+.\deploy_minikube.ps1
 
-Capture data from Kafka and save it to HDFS (Simulating "Immutable Master Data").
-
-```bash
-python ingest_layer.py
+# Follow prompts for testing
 ```
 
-> _Note: Let this run for 10-20 seconds to capture enough data, then stop it (Ctrl+C). It should automatically upload the data to HDFS._
+**Testing Guides**:
+- [MINIKUBE_TESTING_GUIDE.md](deployment/MINIKUBE_TESTING_GUIDE.md)
+- [TESTING_COMPARISON.md](deployment/TESTING_COMPARISON.md)
 
-#### Terminal 4: Batch Layer (Historical Processing)
+---
 
-Once data is on HDFS (from the previous step), run the batch job to create pre-computed views (Parquet files).
+## 📖 Documentation
 
-```bash
-python batch_layer.py
+- **[Architecture Design](docs/architecture-design.md)** - System architecture overview
+- **[Event Schema](docs/event-schema-specification.md)** - Complete event definitions
+- **[Problem Definition](docs/problem-definition.md)** - Project requirements
+- **[Deployment Guide](docs/deployment-guide.md)** - Setup instructions
+
+**Layer Documentation**:
+- [Ingestion Layer](ingestion_layer/README.md)
+- [Batch Layer](batch_layer/README.md) + [Quick Start](batch_layer/QUICKSTART.md)
+- [Speed Layer](speed_layer/README.md)
+- [Serving Layer](serving_layer/README.md)
+
+---
+
+## 🛠️ Development Workflow
+
+### Adding New Event Types
+
+1. Update schema: `docs/event-schema-specification.md`
+2. Update producer: `ingestion_layer/producer.py`
+3. Create/update batch job: `batch_layer/jobs/<category>_batch_job.py`
+4. Test ingestion → batch processing
+
+### Adding New Batch Views
+
+1. Create computation function in relevant batch job
+2. Write output to MinIO: `s3a://bucket-0/batch_views/<view_name>`
+3. Document in batch job docstring
+4. Update `batch_layer/config.py` batch_views list
+
+### Deploying Changes
+
+**Local**:
+```powershell
+# Restart affected services
+docker-compose restart kafka minio
+
+# Re-run jobs
+python batch_layer/run_batch_jobs.py ...
 ```
 
-#### Terminal 5: Serving Layer (Query)
-
-Query the final unified view (merging Batch Views + Real-time Views).
-
-```bash
-python serving_layer.py
+**Oozie**:
+```powershell
+cd batch_layer
+.\deploy_oozie.ps1
+oozie job -kill <old-coordinator-id>
+oozie job -run -config oozie/job.properties
 ```
 
 ---
 
-### 🧹 Cleanup
+## 🔍 Monitoring
 
-To stop the containers and free up resources:
+### MinIO Console
+- URL: http://localhost:9001
+- Credentials: `minioadmin / minioadmin`
+- Browse: `bucket-0/master_dataset/` and `bucket-0/batch_views/`
 
-```bash
-docker-compose down
-```
+### Spark UI
+- URL: http://localhost:4040 (during job execution)
+- Monitor: Job progress, stages, tasks
+
+### Oozie UI
+- URL: http://localhost:11000/oozie
+- Monitor: Workflow status, coordinator jobs
+
+---
+
+## 🚧 Roadmap
+
+### Phase 1: Ingestion & Batch ✅ (Complete)
+- [x] Kafka event ingestion
+- [x] MinIO storage
+- [x] Batch layer with 5 PySpark jobs
+- [x] 37 batch views
+- [x] Oozie orchestration
+
+### Phase 2: Speed Layer ⏳ (Next)
+- [ ] Real-time stream processing
+- [ ] Incremental view updates
+- [ ] Windowed aggregations
+- [ ] Late data handling
+
+### Phase 3: Serving Layer ⏳
+- [ ] Unified query interface
+- [ ] Batch + speed view merger
+- [ ] REST API
+- [ ] Query optimization
+
+### Phase 4: Production Readiness
+- [ ] Monitoring dashboards (Grafana)
+- [ ] Alerting system
+- [ ] Performance optimization
+- [ ] Scalability testing
+
+---
+
+## 👥 Team - Group 30
+
+**Ingestion Layer Team**: Thịnh, Phú, Tiến  
+**Batch Ingestion Team**: Lâm, Lộc
+
+---
+
+## 📄 License
+
+University Big Data Course Project - 2025
+
+---
+
+## 🆘 Troubleshooting
+
+### Common Issues
+
+**Problem**: Cannot connect to Kafka  
+**Solution**: Ensure Kafka is running: `docker ps | grep kafka` or check Minikube deployment
+
+**Problem**: MinIO access denied  
+**Solution**: Check credentials in config files (`minioadmin/minioadmin`)
+
+**Problem**: Batch jobs fail with OOM  
+**Solution**: Increase executor memory in `batch_layer/config.py`
+
+**Problem**: No data in MinIO  
+**Solution**: Ensure producer and ingestion are running, check Kafka topics have data
+
+**More help**: Check respective README files in each layer directory
 
 ---
 
 ## 📞 Support
 
-- **Questions about Kafka?** → Check `kafka/README.md` or ask in team chat
-- **Stuck on a tutorial?** → Review the code comments (detailed explanations)
-- **Need help?** → Contact team leads
+- Check layer-specific README files
+- Review documentation in `docs/`
+- Inspect logs: `docker logs <container>` or `oozie job -log <job-id>`
+- Verify data: MinIO Console or `mc ls minio/bucket-0/`
 
 ---
 
-**Next Milestone**: Ingestion layer complete by end of Week 5! 🎯
+**Project Status**: Batch Layer Complete ✅ | Speed Layer In Progress ⏳
