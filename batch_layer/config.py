@@ -1,10 +1,13 @@
-# Batch Layer Configuration
+﻿# Batch Layer Configuration
 # Central configuration for all batch processing jobs
+
+import os
 
 batch_config = {
     # MinIO / S3 Configuration
+    # Use localhost:9002 for local execution, minio:9000 for Docker/K8s
     "minio": {
-        "endpoint": "http://minio:9000",
+        "endpoint": os.getenv("MINIO_ENDPOINT", "http://localhost:9002"),
         "access_key": "minioadmin",
         "secret_key": "minioadmin",
         "ssl_enabled": False,
@@ -154,3 +157,9 @@ def get_all_batch_views():
     for category, views in batch_config["batch_views"].items():
         all_views.extend(views)
     return all_views
+
+
+
+
+
+
