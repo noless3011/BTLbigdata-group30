@@ -19,6 +19,12 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
+    .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+    .config("spark.hadoop.fs.s3a.connection.establish.timeout", "5000") \
+    .config("spark.hadoop.fs.s3a.connection.timeout", "10000") \
+    .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
+    .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
+    .config("spark.hadoop.fs.s3a.committer.name", "directory") \
     .getOrCreate()
 
 print("="*60)
