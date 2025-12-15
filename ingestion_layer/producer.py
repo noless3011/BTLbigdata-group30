@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from kafka import KafkaProducer
 from faker import Faker
 
+import os
+
 # Cấu hình Kafka
 KAFKA_TOPIC_AUTH = 'auth_topic'
 KAFKA_TOPIC_ASSESSMENT = 'assessment_topic'
@@ -12,7 +14,9 @@ KAFKA_TOPIC_VIDEO = 'video_topic'
 KAFKA_TOPIC_COURSE = 'course_topic'
 KAFKA_TOPIC_PROFILE = 'profile_topic'
 KAFKA_TOPIC_NOTIFICATION = 'notification_topic'
-BOOTSTRAP_SERVERS = ['localhost:9092']
+
+# Read from env or default to localhost:9092
+BOOTSTRAP_SERVERS = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092').split(',')
 
 producer = KafkaProducer(
     bootstrap_servers=BOOTSTRAP_SERVERS,
