@@ -14,16 +14,23 @@ MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "http://minio:9000")
 MINIO_ACCESS_KEY = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
 
-# Initialize Spark Session with Kafka support
+# Initialize Spark Session with Kafka support and S3A JARs
+jar_list = "/app/jars/hadoop-aws-3.3.4.jar,/app/jars/aws-java-sdk-bundle-1.12.262.jar"
+classpath = "/app/jars/hadoop-aws-3.3.4.jar:/app/jars/aws-java-sdk-bundle-1.12.262.jar"
+
 spark = SparkSession.builder \
     .appName("SpeedLayer_RealTimeProcessing") \
     .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0") \
+    .config("spark.jars", jar_list) \
+    .config("spark.driver.extraClassPath", classpath) \
+    .config("spark.executor.extraClassPath", classpath) \
     .config("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT) \
     .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY) \
     .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY) \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
+    .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
