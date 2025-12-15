@@ -26,6 +26,19 @@ echo ""
 echo -e "${YELLOW}Deleting MinIO and Kafka...${NC}"
 kubectl delete namespace minio --ignore-not-found=true
 kubectl delete namespace kafka --ignore-not-found=true
+
+# Wait for deletion or force it
+echo -e "${YELLOW}Waiting for namespaces to terminate...${NC}"
+sleep 10
+if kubectl get ns kafka &> /dev/null; then
+    echo -e "${RED}⚠️ Namespace 'kafka' is stuck Terminating. Forcing deletion...${NC}"
+    kubectl get namespace kafka -o json | tr -d "\n" | sed "s/\"finalizers\": \[[^]]*\]/\"finalizers\": []/" | kubectl replace --raw /api/v1/namespaces/kafka/finalize -f -
+fi
+if kubectl get ns minio &> /dev/null; then
+    echo -e "${RED}⚠️ Namespace 'minio' is stuck Terminating. Forcing deletion...${NC}"
+    kubectl get namespace minio -o json | tr -d "\n" | sed "s/\"finalizers\": \[[^]]*\]/\"finalizers\": []/" | kubectl replace --raw /api/v1/namespaces/minio/finalize -f -
+fi
+
 echo -e "${GREEN}✅ Infrastructure namespaces deleted${NC}"
 echo ""
 
