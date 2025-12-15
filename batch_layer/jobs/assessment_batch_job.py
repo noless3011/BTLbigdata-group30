@@ -12,17 +12,7 @@ from pyspark.sql.functions import (
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType, IntegerType
 import sys
 
-def create_spark_session():
-    """Initialize Spark Session with MinIO configuration"""
-    return SparkSession.builder \
-        .appName("Assessment_Batch_Job") \
-        .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
-        .config("spark.hadoop.fs.s3a.access.key", "minioadmin") \
-        .config("spark.hadoop.fs.s3a.secret.key", "minioadmin") \
-        .config("spark.hadoop.fs.s3a.path.style.access", "true") \
-        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-        .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
-        .getOrCreate()
+from spark_config import create_spark_session
 
 def get_assessment_schema():
     """Define schema for ASSESSMENT events"""
@@ -176,7 +166,7 @@ def compute_student_overall_performance(df):
 
 def main(input_path, output_path):
     """Main batch job execution"""
-    spark = create_spark_session()
+    spark = create_spark_session("Assessment_Batch_Job")
     spark.sparkContext.setLogLevel("WARN")
     
     print(f"[ASSESSMENT BATCH] Reading assessment events from: {input_path}")
