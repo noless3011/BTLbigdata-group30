@@ -9,7 +9,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-RUN pip install fastapi uvicorn streamlit minio pandas plotly prometheus_client
+# Install Python dependencies
+COPY serving_layer/requirements.txt .
+RUN pip install -r requirements.txt
 
 # Copy application code
 COPY serving_layer/ /app/serving_layer/
