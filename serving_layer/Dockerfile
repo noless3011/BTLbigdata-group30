@@ -1,6 +1,7 @@
 FROM python:3.9-slim
 
 WORKDIR /app
+ENV PYTHONPATH=/app
 
 # Install system dependencies
 RUN apt-get update && \

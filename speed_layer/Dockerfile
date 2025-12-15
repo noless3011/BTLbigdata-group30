@@ -10,7 +10,7 @@ ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 WORKDIR /app
 
 # Install Python dependencies
-COPY requirements.txt .
+COPY speed_layer/requirements.txt .
 # If no requirements.txt exists in local dir, we manually install essentials
 RUN pip install pyspark==3.5.0 kafka-python
 
