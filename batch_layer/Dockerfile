@@ -1,8 +1,8 @@
 FROM python:3.9-slim-bookworm
 
-# Install Java (Required for PySpark)
+# Install Java (Required for PySpark) and curl (for downloading JARs)
 RUN apt-get update && \
-    apt-get install -y openjdk-17-jre-headless procps && \
+    apt-get install -y openjdk-17-jre-headless procps curl && \
     rm -rf /var/lib/apt/lists/*
 
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
