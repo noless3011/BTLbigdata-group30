@@ -22,10 +22,17 @@ kubectl delete job batch-layer-job -n default --ignore-not-found=true
 echo -e "${GREEN}✅ Application layers deleted${NC}"
 echo ""
 
-# 2. Delete MinIO and Kafka
+# 2. Delete MinIO and Kafka (and Persistent Volumes)
 echo -e "${YELLOW}Deleting MinIO and Kafka...${NC}"
 kubectl delete namespace minio --ignore-not-found=true
 kubectl delete namespace kafka --ignore-not-found=true
+
+# Delete PVs so they can be re-bound cleanly
+kubectl delete pv pv-kafka-0 pv-kafka-1 pv-kafka-2 --ignore-not-found=true
+
+# Cleanup physical data on Minikube host to prevent "Invalid cluster.id" errors
+echo -e "${YELLOW}Cleaning up physical data on Minikube host...${NC}"
+minikube ssh "sudo rm -rf /mnt/kafka-data/*"
 
 # Wait for deletion or force it
 echo -e "${YELLOW}Waiting for namespaces to terminate...${NC}"
