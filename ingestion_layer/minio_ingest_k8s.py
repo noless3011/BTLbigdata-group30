@@ -25,6 +25,7 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
     .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
     .config("spark.hadoop.fs.s3a.committer.name", "directory") \
+    .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
     .getOrCreate()
 
 print("="*60)
