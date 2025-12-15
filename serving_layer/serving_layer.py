@@ -24,9 +24,14 @@ def read_parquet(path):
     """Helper to read parquet path from MinIO"""
     full_path = f"{BUCKET_NAME}/{path}"
     try:
+        # Use pyarrow directly to avoid s3fs path resolution issues
+        import pyarrow.parquet as pq
+        
         # Check if exists (s3fs glob or exists)
         if fs.exists(full_path):
-             return pd.read_parquet(f"s3://{full_path}", filesystem=fs)
+            # Read using pyarrow, then convert to pandas
+            table = pq.read_table(f"{full_path}", filesystem=fs.fs)
+            return table.to_pandas()
         return pd.DataFrame()
     except Exception as e:
         print(f"Error reading {full_path}: {e}")
