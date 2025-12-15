@@ -1,0 +1,81 @@
+kubectl get jobs batch-layer-job -o yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"batch/v1","kind":"Job","metadata":{"annotations":{},"name":"batch-layer-job","namespace":"default"},"spec":{"backoffLimit":4,"template":{"spec":{"containers":[{"env":[{"name":"MINIO_ENDPOINT","value":"http://minio.minio.svc:9000"},{"name":"MINIO_ACCESS_KEY","value":"minioadmin"},{"name":"MINIO_SECRET_KEY","value":"minioadmin"}],"image":"batch-layer:latest","imagePullPolicy":"Never","name":"batch-layer","resources":{"limits":{"cpu":"1000m","memory":"2Gi"},"requests":{"cpu":"500m","memory":"1Gi"}}}],"restartPolicy":"Never"}}}}
+  creationTimestamp: "2025-12-15T10:16:55Z"
+  generation: 1
+  labels:
+    batch.kubernetes.io/controller-uid: 2fa6f9ea-a2a6-4bd4-bed3-36e4cbbe1649
+    batch.kubernetes.io/job-name: batch-layer-job
+    controller-uid: 2fa6f9ea-a2a6-4bd4-bed3-36e4cbbe1649
+    job-name: batch-layer-job
+  name: batch-layer-job
+  namespace: default
+  resourceVersion: "11972"
+  uid: 2fa6f9ea-a2a6-4bd4-bed3-36e4cbbe1649
+spec:
+  backoffLimit: 4
+  completionMode: NonIndexed
+  completions: 1
+  manualSelector: false
+  parallelism: 1
+  podReplacementPolicy: TerminatingOrFailed
+  selector:
+    matchLabels:
+      batch.kubernetes.io/controller-uid: 2fa6f9ea-a2a6-4bd4-bed3-36e4cbbe1649
+  suspend: false
+  template:
+    metadata:
+      labels:
+        batch.kubernetes.io/controller-uid: 2fa6f9ea-a2a6-4bd4-bed3-36e4cbbe1649
+        batch.kubernetes.io/job-name: batch-layer-job
+        controller-uid: 2fa6f9ea-a2a6-4bd4-bed3-36e4cbbe1649
+        job-name: batch-layer-job
+    spec:
+      containers:
+      - env:
+        - name: MINIO_ENDPOINT
+          value: http://minio.minio.svc:9000
+        - name: MINIO_ACCESS_KEY
+          value: minioadmin
+        - name: MINIO_SECRET_KEY
+          value: minioadmin
+        image: batch-layer:latest
+        imagePullPolicy: Never
+        name: batch-layer
+        resources:
+          limits:
+            cpu: "1"
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Never
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  conditions:
+  - lastProbeTime: "2025-12-15T10:19:34Z"
+    lastTransitionTime: "2025-12-15T10:19:34Z"
+    message: Job has reached the specified backoff limit
+    reason: BackoffLimitExceeded
+    status: "True"
+    type: FailureTarget
+  - lastProbeTime: "2025-12-15T10:19:34Z"
+    lastTransitionTime: "2025-12-15T10:19:34Z"
+    message: Job has reached the specified backoff limit
+    reason: BackoffLimitExceeded
+    status: "True"
+    type: Failed
+  failed: 5
+  ready: 0
+  startTime: "2025-12-15T10:16:55Z"
+  terminating: 0
+  uncountedTerminatedPods: {}
