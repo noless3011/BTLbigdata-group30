@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.9-slim-bookworm
 
 # Install Java (Required for PySpark)
 RUN apt-get update && \
