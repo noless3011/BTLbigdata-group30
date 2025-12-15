@@ -183,7 +183,7 @@ def main(input_path, output_path):
     
     # Parse JSON body
     profile_schema = get_profile_schema()
-    df_profile_parsed = df_profile_raw.withColumn("data", from_json(col("value").cast("string"), profile_schema)).select("data.*", "timestamp")
+    df_profile_parsed = df_profile_raw.withColumn("data", from_json(col("value").cast("string"), profile_schema)).select("data.*")
 
     df_profile = df_profile_parsed.withColumn("timestamp_parsed", col("timestamp").cast(TimestampType()))
     
@@ -211,7 +211,7 @@ def main(input_path, output_path):
 
     # Parse JSON body
     notif_schema = get_notification_schema()
-    df_notif_parsed = df_notif_raw.withColumn("data", from_json(col("value").cast("string"), notif_schema)).select("data.*", "timestamp")
+    df_notif_parsed = df_notif_raw.withColumn("data", from_json(col("value").cast("string"), notif_schema)).select("data.*")
 
     df_notif = df_notif_parsed.withColumn("timestamp_parsed", col("timestamp").cast(TimestampType()))
     

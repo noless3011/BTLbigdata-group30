@@ -179,7 +179,7 @@ def main(input_path, output_path):
     
     # Parse JSON body
     json_schema = get_video_schema()
-    df_parsed = df_raw.withColumn("data", from_json(col("value").cast("string"), json_schema)).select("data.*", "timestamp")
+    df_parsed = df_raw.withColumn("data", from_json(col("value").cast("string"), json_schema)).select("data.*")
 
     # Parse timestamp
     df = df_parsed.withColumn("timestamp_parsed", col("timestamp").cast(TimestampType()))
