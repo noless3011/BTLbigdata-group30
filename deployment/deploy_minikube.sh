@@ -92,8 +92,39 @@ kill $PF_PID
 echo -e "${GREEN}✅ MinIO bucket created${NC}"
 echo ""
 
-# Step 9: Display status
-echo -e "${YELLOW}[9/10] Checking deployment status...${NC}"
+# Step 9: Build Docker Images
+echo -e "${YELLOW}[9/12] Building Docker images inside Minikube...${NC}"
+eval $(minikube docker-env)
+
+echo "   Building Speed Layer..."
+docker build -t speed-layer:latest -f speed_layer/Dockerfile .
+echo "   Building Serving Layer..."
+docker build -t serving-layer:latest -f serving_layer/Dockerfile .
+echo "   Building Batch Layer..."
+docker build -t batch-layer:latest -f batch_layer/Dockerfile .
+echo -e "${GREEN}✅ Images built${NC}"
+echo ""
+
+# Step 10: Deploy Speed Layer
+echo -e "${YELLOW}[10/12] Deploying Speed Layer...${NC}"
+kubectl apply -f speed_layer/deployment.yaml -n default
+echo -e "${GREEN}✅ Speed Layer deployed${NC}"
+echo ""
+
+# Step 11: Deploy Serving Layer
+echo -e "${YELLOW}[11/12] Deploying Serving Layer...${NC}"
+kubectl apply -f serving_layer/deployment.yaml -n default
+echo -e "${GREEN}✅ Serving Layer deployed${NC}"
+echo ""
+
+# Step 12: Deploy Batch Layer (Job)
+echo -e "${YELLOW}[12/12] Deploying Batch Layer Job...${NC}"
+kubectl apply -f batch_layer/deployment.yaml -n default
+echo -e "${GREEN}✅ Batch Layer Job submitted${NC}"
+echo ""
+
+# Step 13: Display status
+echo -e "${YELLOW}[13/13] Checking deployment status...${NC}"
 echo ""
 echo -e "${CYAN}Kafka Pods:${NC}"
 kubectl get pods -n kafka -l strimzi.io/cluster=kafka-cluster
@@ -101,12 +132,15 @@ echo ""
 echo -e "${CYAN}MinIO Pods:${NC}"
 kubectl get pods -n minio
 echo ""
+echo -e "${CYAN}Application Pods (Default Namespace):${NC}"
+kubectl get pods -n default
+echo ""
 echo -e "${CYAN}Kafka Topics:${NC}"
 kubectl get kafkatopics -n kafka
 echo ""
 
-# Step 10: Instructions
-echo -e "${YELLOW}[10/10] Deployment Complete${NC}"
+# Step 14: Instructions
+echo -e "${YELLOW}[COMPLETE] System Deployed${NC}"
 echo ""
 echo -e "${CYAN}================================${NC}"
 echo -e "${CYAN}NEXT STEPS:${NC}"
@@ -118,17 +152,8 @@ echo "   Terminal 2: kubectl port-forward service/minio 9001:9001 -n minio"
 echo ""
 echo -e "${YELLOW}2. Wait 30 seconds for port-forwards to be ready${NC}"
 echo ""
-echo -e "${YELLOW}3. Run the producer:${NC}"
-echo "   export KAFKA_BOOTSTRAP_SERVERS=$(minikube ip):30092"
-echo "   python3 ingestion_layer/producer.py"
-echo ""
-echo -e "${YELLOW}4. Run the ingestion layer:${NC}"
-echo "   python3 ingestion_layer/minio_ingest_k8s.py"
-echo ""
-echo -e "${YELLOW}5. Access MinIO Console:${NC}"
-echo "   http://localhost:9001"
-echo "   Username: minioadmin"
-echo "   Password: minioadmin"
+echo -e "${YELLOW}3. Run verification:${NC}"
+echo "   ./deployment/verify_minikube.sh"
 echo ""
 echo -e "${GREEN}================================${NC}"
 echo -e "${GREEN}DEPLOYMENT COMPLETE! ✅${NC}"
