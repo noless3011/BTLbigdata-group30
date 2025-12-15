@@ -7,12 +7,26 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, count, countDistinct, date_format, 
     sum as spark_sum, avg, max as spark_max, min as spark_min,
-    when, expr
+    when, expr,
+    from_json
 )
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType, IntegerType
 import sys
 
 from spark_config import create_spark_session
+
+def get_course_schema():
+    """Define schema for COURSE events"""
+    return StructType([
+        StructField("event_category", StringType(), False),
+        StructField("event_type", StringType(), False),
+        StructField("user_id", StringType(), False),
+        StructField("course_id", StringType(), False),
+        StructField("timestamp", StringType(), False),
+        StructField("material_id", StringType(), True),
+        StructField("material_type", StringType(), True),
+        StructField("resource_id", StringType(), True)
+    ])
 
 def compute_course_enrollment_stats(df):
     """Compute enrollment statistics per course"""
@@ -132,8 +146,12 @@ def main(input_path, output_path):
     # Read raw course events from MinIO
     df_raw = spark.read.parquet(f"{input_path}/topic=course_topic")
     
+    # Parse JSON body
+    json_schema = get_course_schema()
+    df_parsed = df_raw.withColumn("data", from_json(col("value").cast("string"), json_schema)).select("data.*", "timestamp")
+
     # Parse timestamp
-    df = df_raw.withColumn("timestamp_parsed", col("timestamp").cast(TimestampType()))
+    df = df_parsed.withColumn("timestamp_parsed", col("timestamp").cast(TimestampType()))
     
     print(f"[COURSE BATCH] Total course events: {df.count()}")
     

@@ -7,7 +7,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, count, countDistinct, date_format, hour, 
     min as spark_min, max as spark_max, avg, 
-    window, unix_timestamp, when, sum as spark_sum
+    window, unix_timestamp, when, sum as spark_sum,
+    from_json
 )
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType
 import sys
@@ -113,8 +114,12 @@ def main(input_path, output_path):
     # Read raw auth events from MinIO (partitioned by topic=auth_topic)
     df_raw = spark.read.parquet(f"{input_path}/topic=auth_topic")
     
+    # Parse JSON body
+    json_schema = get_auth_schema()
+    df_parsed = df_raw.withColumn("data", from_json(col("value").cast("string"), json_schema)).select("data.*", "timestamp")
+    
     # Parse timestamp
-    df = df_raw.withColumn("timestamp_parsed", col("timestamp").cast(TimestampType()))
+    df = df_parsed.withColumn("timestamp_parsed", col("timestamp").cast(TimestampType()))
     
     print(f"[AUTH BATCH] Total auth events: {df.count()}")
     
