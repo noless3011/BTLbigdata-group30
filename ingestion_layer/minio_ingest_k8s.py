@@ -26,6 +26,9 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
     .config("spark.hadoop.fs.s3a.committer.name", "directory") \
     .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+    .config("spark.hadoop.fs.s3a.multipart.purge.age", "86400") \
+    .config("spark.hadoop.fs.s3a.connection.ttl", "300") \
+    .config("spark.hadoop.fs.s3a.assumed.role.session.duration", "1800") \
     .getOrCreate()
 
 print("="*60)
