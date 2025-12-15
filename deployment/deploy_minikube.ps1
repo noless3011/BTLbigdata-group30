@@ -95,14 +95,14 @@ Write-Host "================================" -ForegroundColor Cyan
 Write-Host "NEXT STEPS:" -ForegroundColor Cyan
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "1. Open 3 NEW PowerShell terminals and run:" -ForegroundColor Yellow
-Write-Host "   Terminal 1: kubectl port-forward service/kafka-cluster-kafka-bootstrap 9092:9092 -n kafka" -ForegroundColor White
-Write-Host "   Terminal 2: kubectl port-forward service/minio 9000:9000 -n minio" -ForegroundColor White
-Write-Host "   Terminal 3: kubectl port-forward service/minio 9001:9001 -n minio" -ForegroundColor White
+Write-Host "1. Open 2 NEW PowerShell terminals and run:" -ForegroundColor Yellow
+Write-Host "   Terminal 1: kubectl port-forward service/minio 9000:9000 -n minio" -ForegroundColor White
+Write-Host "   Terminal 2: kubectl port-forward service/minio 9001:9001 -n minio" -ForegroundColor White
 Write-Host ""
 Write-Host "2. Wait 30 seconds for port-forwards to be ready" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "3. Run the producer:" -ForegroundColor Yellow
+Write-Host "   `$env:KAFKA_BOOTSTRAP_SERVERS = \"$(minikube ip):30092\"" -ForegroundColor White
 Write-Host "   python producer.py" -ForegroundColor White
 Write-Host ""
 Write-Host "4. Run the ingestion layer:" -ForegroundColor Yellow
