@@ -33,7 +33,7 @@ Write-Host ""
 
 # Step 4: Create storage
 Write-Host "[4/10] Setting up storage..." -ForegroundColor Yellow
-minikube ssh "sudo mkdir -p /mnt/kafka-data/0 /mnt/kafka-data/1 /mnt/kafka-data/2"
+minikube ssh "sudo mkdir -p /mnt/kafka-data/0 /mnt/kafka-data/1 /mnt/kafka-data/2 && sudo chmod -R 777 /mnt/kafka-data"
 kubectl apply -f kafka/storage-class.yaml -n kafka
 kubectl apply -f kafka/persistent-volumn-minikube.yaml -n kafka
 Write-Host "✅ Storage configured" -ForegroundColor Green
@@ -42,7 +42,7 @@ Write-Host ""
 # Step 5: Deploy Kafka
 Write-Host "[5/10] Deploying Kafka cluster (this takes 3-5 minutes)..." -ForegroundColor Yellow
 kubectl apply -f kafka/deployment.yaml -n kafka
-kubectl wait kafka/kafka-cluster --for=condition=Ready --timeout=600s -n kafka
+kubectl wait kafka/kafka-cluster --for=condition=Ready --timeout=1200s -n kafka
 Write-Host "✅ Kafka cluster ready" -ForegroundColor Green
 Write-Host ""
 

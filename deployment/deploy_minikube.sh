@@ -41,7 +41,7 @@ echo ""
 
 # Step 4: Create storage
 echo -e "${YELLOW}[4/10] Setting up storage...${NC}"
-minikube ssh "sudo mkdir -p /mnt/kafka-data/0 /mnt/kafka-data/1 /mnt/kafka-data/2"
+minikube ssh "sudo mkdir -p /mnt/kafka-data/0 /mnt/kafka-data/1 /mnt/kafka-data/2 && sudo chmod -R 777 /mnt/kafka-data"
 kubectl apply -f kafka/storage-class.yaml -n kafka
 kubectl apply -f kafka/persistent-volumn-minikube.yaml -n kafka
 echo -e "${GREEN}✅ Storage configured${NC}"
@@ -50,7 +50,7 @@ echo ""
 # Step 5: Deploy Kafka
 echo -e "${YELLOW}[5/10] Deploying Kafka cluster (this takes 3-5 minutes)...${NC}"
 kubectl apply -f kafka/deployment.yaml -n kafka
-kubectl wait kafka/kafka-cluster --for=condition=Ready --timeout=600s -n kafka
+kubectl wait kafka/kafka-cluster --for=condition=Ready --timeout=1200s -n kafka
 echo -e "${GREEN}✅ Kafka cluster ready${NC}"
 echo ""
 
