@@ -1,0 +1,32 @@
+kubectl logs -l app=serving-layer --tail=30
+Defaulted container "serving-api" out of: serving-api, serving-ui
+INFO:     127.0.0.1:46576 - "GET /analytics/dau HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46578 - "GET /analytics/course_popularity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46584 - "GET /analytics/realtime/video HTTP/1.1" 200 OK
+Error reading bucket-0/batch_views/auth_daily_active_users: GetFileInfo() yielded path 'bucket-0/batch_views/auth_daily_active_users/part-00000-197dd308-f026-482e-ad32-ed0afaee93c3-c000.snappy.parquet', which is outside base dir 's3://bucket-0/batch_views/auth_daily_active_users'
+INFO:     127.0.0.1:53514 - "GET /analytics/dau HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53524 - "GET /analytics/course_popularity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53540 - "GET /analytics/realtime/video HTTP/1.1" 200 OK
+Error reading bucket-0/batch_views/auth_daily_active_users: GetFileInfo() yielded path 'bucket-0/batch_views/auth_daily_active_users/part-00000-197dd308-f026-482e-ad32-ed0afaee93c3-c000.snappy.parquet', which is outside base dir 's3://bucket-0/batch_views/auth_daily_active_users'
+INFO:     127.0.0.1:53552 - "GET /analytics/dau HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53558 - "GET /analytics/course_popularity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53562 - "GET /analytics/realtime/video HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50960 - "GET /docs HTTP/1.1" 200 OK
+Error reading bucket-0/batch_views/auth_daily_active_users: GetFileInfo() yielded path 'bucket-0/batch_views/auth_daily_active_users/part-00000-197dd308-f026-482e-ad32-ed0afaee93c3-c000.snappy.parquet', which is outside base dir 's3://bucket-0/batch_views/auth_daily_active_users'
+INFO:     127.0.0.1:34056 - "GET /analytics/dau HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34064 - "GET /analytics/course_popularity HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34080 - "GET /analytics/realtime/video HTTP/1.1" 200 OK
+Error reading bucket-0/batch_views/auth_daily_active_users: GetFileInfo() yielded path 'bucket-0/batch_views/auth_daily_active_users/part-00000-197dd308-f026-482e-ad32-ed0afaee93c3-c000.snappy.parquet', which is outside base dir 's3://bucket-0/batch_views/auth_daily_active_users'
+Error reading bucket-0/speed_views/active_users: GetFileInfo() yielded path 'bucket-0/speed_views/active_users/part-00000-0dc74186-5af6-4ce9-80e0-9327d8a3fc8f-c000.snappy.parquet', which is outside base dir 's3://bucket-0/speed_views/active_users'
+INFO:     127.0.0.1:35190 - "GET /analytics/dau HTTP/1.1" 200 OK
+Error reading bucket-0/speed_views/course_popularity: GetFileInfo() yielded path 'bucket-0/speed_views/course_popularity/_spark_metadata/', which is outside base dir 's3://bucket-0/speed_views/course_popularity'
+INFO:     127.0.0.1:35202 - "GET /analytics/course_popularity HTTP/1.1" 200 OK
+Error reading bucket-0/speed_views/video_engagement: GetFileInfo() yielded path 'bucket-0/speed_views/video_engagement/part-00000-59aa12a1-ef18-44ad-915d-a29048fc9a06-c000.snappy.parquet', which is outside base dir 's3://bucket-0/speed_views/video_engagement'
+INFO:     127.0.0.1:35218 - "GET /analytics/realtime/video HTTP/1.1" 200 OK
+Error reading bucket-0/batch_views/auth_daily_active_users: GetFileInfo() yielded path 'bucket-0/batch_views/auth_daily_active_users/part-00000-197dd308-f026-482e-ad32-ed0afaee93c3-c000.snappy.parquet', which is outside base dir 's3://bucket-0/batch_views/auth_daily_active_users'
+Error reading bucket-0/speed_views/active_users: GetFileInfo() yielded path 'bucket-0/speed_views/active_users/part-00000-0dc74186-5af6-4ce9-80e0-9327d8a3fc8f-c000.snappy.parquet', which is outside base dir 's3://bucket-0/speed_views/active_users'
+INFO:     127.0.0.1:48754 - "GET /analytics/dau HTTP/1.1" 200 OK
+Error reading bucket-0/speed_views/course_popularity: GetFileInfo() yielded path 'bucket-0/speed_views/course_popularity/part-00000-ee315e2d-4153-46f8-8661-d3787c6e59c8-c000.snappy.parquet', which is outside base dir 's3://bucket-0/speed_views/course_popularity'
+INFO:     127.0.0.1:48770 - "GET /analytics/course_popularity HTTP/1.1" 200 OK
+Error reading bucket-0/speed_views/video_engagement: GetFileInfo() yielded path 'bucket-0/speed_views/video_engagement/part-00000-59aa12a1-ef18-44ad-915d-a29048fc9a06-c000.snappy.parquet', which is outside base dir 's3://bucket-0/speed_views/video_engagement'
+INFO:     127.0.0.1:48776 - "GET /analytics/realtime/video HTTP/1.1" 200 OK
