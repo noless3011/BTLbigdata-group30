@@ -30,7 +30,7 @@ def read_parquet(path):
         # Check if exists (s3fs glob or exists)
         if fs.exists(full_path):
             # Read using pyarrow, then convert to pandas
-            table = pq.read_table(f"{full_path}", filesystem=fs.fs)
+            table = pq.read_table(f"{full_path}", filesystem=fs)
             return table.to_pandas()
         return pd.DataFrame()
     except Exception as e:
