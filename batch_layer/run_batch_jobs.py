@@ -3,6 +3,8 @@ Master Batch Job Runner
 Orchestrates all batch processing jobs - can be run manually or via Oozie
 """
 
+import glob
+
 from pyspark.sql import SparkSession
 import sys
 import os
@@ -13,6 +15,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'jobs'))
 
 def create_spark_session():
     """Initialize Spark Session with MinIO configuration"""
+    # Debug: Check if JARs exist
+    print(f"DEBUG: Checking /app/jars content:")
+    print(glob.glob("/app/jars/*.jar"))
+
     return SparkSession.builder \
         .appName("Master_Batch_Runner") \
         .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
@@ -21,6 +27,10 @@ def create_spark_session():
         .config("spark.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
+        .config("spark.driver.extraClassPath", "/app/jars/hadoop-aws-3.3.4.jar:/app/jars/aws-java-sdk-bundle-1.12.262.jar") \
+        .config("spark.executor.extraClassPath", "/app/jars/hadoop-aws-3.3.4.jar:/app/jars/aws-java-sdk-bundle-1.12.262.jar") \
+        .config("spark.jars", "/app/jars/hadoop-aws-3.3.4.jar,/app/jars/aws-java-sdk-bundle-1.12.262.jar") \
+        .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
         .getOrCreate()
 
 def run_batch_job(job_name, input_path, output_path):

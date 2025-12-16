@@ -12,13 +12,23 @@ MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 # Initialize Spark with MinIO/S3A configuration
 spark = SparkSession.builder \
     .appName("KafkaToMinIO_Ingestion") \
-    .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0,org.apache.hadoop:hadoop-aws:3.3.4") \
+    .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.13:3.5.0,org.apache.hadoop:hadoop-aws:3.3.4") \
     .config("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT) \
     .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY) \
     .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY) \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
+    .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+    .config("spark.hadoop.fs.s3a.connection.establish.timeout", "5000") \
+    .config("spark.hadoop.fs.s3a.connection.timeout", "10000") \
+    .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
+    .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
+    .config("spark.hadoop.fs.s3a.committer.name", "directory") \
+    .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+    .config("spark.hadoop.fs.s3a.multipart.purge.age", "86400") \
+    .config("spark.hadoop.fs.s3a.connection.ttl", "300") \
+    .config("spark.hadoop.fs.s3a.assumed.role.session.duration", "1800") \
     .getOrCreate()
 
 print("="*60)
