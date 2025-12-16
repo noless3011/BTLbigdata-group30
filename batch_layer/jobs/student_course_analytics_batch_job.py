@@ -197,7 +197,7 @@ def main(input_path, output_path):
         .filter(col("role") == "student")
     
     # Read AUTH for login stats
-    from batch_layer.jobs.auth_batch_job import get_auth_schema
+    from auth_batch_job import get_auth_schema
     df_auth_raw = spark.read.parquet(f"{input_path}/topic=auth_topic")
     auth_schema = get_auth_schema()
     df_auth = df_auth_raw \
