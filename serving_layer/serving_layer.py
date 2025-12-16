@@ -144,6 +144,77 @@ def get_realtime_video_stats():
             
     return response
 
+# ========== COURSE ENDPOINTS ==========
+
+@app.get("/analytics/courses")
+def get_all_courses():
+    """List all courses with summary stats"""
+    df = read_parquet("batch_views/course_overview")
+    if df.empty:
+        return []
+    return df.to_dict("records")
+
+@app.get("/analytics/course/{course_id}")
+def get_course_details(course_id: str):
+    """Get detailed stats for a specific course"""
+    df = read_parquet("batch_views/course_overview")
+    if df.empty:
+        return {}
+    course = df[df['course_id'] == course_id]
+    if course.empty:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return course.to_dict("records")[0]
+
+@app.get("/analytics/course/{course_id}/students")
+def get_course_students(course_id: str):
+    """Get all students enrolled in a course with their performance"""
+    df = read_parquet("batch_views/student_course_enrollment")
+    if df.empty:
+        return []
+    students = df[df['course_id'] == course_id]
+    return students.to_dict("records")
+
+#  ========== STUDENT ENDPOINTS ==========
+
+@app.get("/analytics/students")
+def get_all_students():
+    """List all students with summary stats"""
+    df = read_parquet("batch_views/student_overview")
+    if df.empty:
+        return []
+    return df.to_dict("records")
+
+@app.get("/analytics/student/{student_id}")
+def get_student_details(student_id: str):
+    """Get detailed stats for a specific student"""
+    df = read_parquet("batch_views/student_overview")
+    if df.empty:
+        return {}
+    student = df[df['student_id'] == student_id]
+    if student.empty:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return student.to_dict("records")[0]
+
+@app.get("/analytics/student/{student_id}/courses")
+def get_student_courses(student_id: str):
+    """Get all courses a student is enrolled in with performance"""
+    df = read_parquet("batch_views/student_course_enrollment")
+    if df.empty:
+        return []
+    courses = df[df['student_id'] == student_id]
+    return courses.to_dict("records")
+
+@app.get("/analytics/student/{student_id}/course/{course_id}")
+def get_student_course_performance(student_id: str, course_id: str):
+    """Get detailed performance of a student in a specific course"""
+    df = read_parquet("batch_views/student_course_detailed")
+    if df.empty:
+        return {}
+    perf = df[(df['student_id'] == student_id) & (df['course_id'] == course_id)]
+    if perf.empty:
+        raise HTTPException(status_code=404, detail="Student-course record not found")
+    return perf.to_dict("records")[0]
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
