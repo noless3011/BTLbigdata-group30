@@ -3,59 +3,24 @@ Master Batch Job Runner
 Orchestrates all batch processing jobs - can be run manually or via Oozie
 """
 
+from pyspark.sql import SparkSession
 import sys
 import os
 from datetime import datetime
 
-# Set Java options BEFORE importing PySpark
-# This fixes the "getSubject is not supported" error on Windows with Java 17+
-java_opts = "--add-opens=java.base/javax.security.auth=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED"
-# Set JAVA_TOOL_OPTIONS for all Java processes
-if "JAVA_TOOL_OPTIONS" not in os.environ:
-    os.environ["JAVA_TOOL_OPTIONS"] = java_opts
-# Also set PYSPARK_SUBMIT_ARGS
-os.environ["PYSPARK_SUBMIT_ARGS"] = f"--driver-java-options '{java_opts}' --conf spark.driver.extraJavaOptions='{java_opts}' --conf spark.executor.extraJavaOptions='{java_opts}' pyspark-shell"
-os.environ["HADOOP_USER_NAME"] = "root"
-# Disable HADOOP_HOME check for Windows (we use MinIO/S3, not HDFS)
-# Create a dummy HADOOP_HOME to avoid winutils.exe error
-if "HADOOP_HOME" not in os.environ:
-    import tempfile
-    hadoop_home = os.path.join(tempfile.gettempdir(), "hadoop_home")
-    os.makedirs(hadoop_home, exist_ok=True)
-    bin_dir = os.path.join(hadoop_home, "bin")
-    os.makedirs(bin_dir, exist_ok=True)
-    os.environ["HADOOP_HOME"] = hadoop_home
-    # Create a minimal winutils.exe stub (empty file - Spark will still try to use it)
-    # Note: This may not work perfectly, but it's better than nothing
-    winutils_path = os.path.join(bin_dir, "winutils.exe")
-    if not os.path.exists(winutils_path):
-        # Create empty file as placeholder
-        with open(winutils_path, 'wb') as f:
-            f.write(b'')
-    # Set hadoop.home.dir in Spark config
-    os.environ["PYSPARK_SUBMIT_ARGS"] = os.environ.get("PYSPARK_SUBMIT_ARGS", "") + f" --conf spark.hadoop.hadoop.home.dir={hadoop_home}"
-
-from pyspark.sql import SparkSession
 # Import all batch jobs
 sys.path.append(os.path.join(os.path.dirname(__file__), 'jobs'))
 
 def create_spark_session():
     """Initialize Spark Session with MinIO configuration"""
-    # Use localhost:9002 for local execution, minio:9000 for Docker/K8s
-    import os
-    minio_endpoint = os.getenv("MINIO_ENDPOINT", "http://localhost:9002")
-    
     return SparkSession.builder \
         .appName("Master_Batch_Runner") \
-        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262") \
-        .config("spark.hadoop.fs.s3a.endpoint", minio_endpoint) \
+        .config("spark.hadoop.fs.s3a.endpoint", "http://minio:9000") \
         .config("spark.hadoop.fs.s3a.access.key", "minioadmin") \
         .config("spark.hadoop.fs.s3a.secret.key", "minioadmin") \
         .config("spark.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
-        .config("spark.driver.extraJavaOptions", "--add-opens=java.base/javax.security.auth=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED") \
-        .config("spark.executor.extraJavaOptions", "--add-opens=java.base/javax.security.auth=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED") \
         .getOrCreate()
 
 def run_batch_job(job_name, input_path, output_path):

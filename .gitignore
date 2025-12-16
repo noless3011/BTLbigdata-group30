@@ -1,11 +1,3 @@
-data/
-generate_fake_data/
-__pycache__/
-*.parquet
-*.log
-*.csv
-*.json
-.env
 # Operating systems
 .DS_Store
 Thumbs.db
