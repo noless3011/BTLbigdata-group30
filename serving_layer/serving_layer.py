@@ -199,7 +199,7 @@ def get_daily_active_users(hours: int = 6):
     if not df_batch.empty:
         for _, row in df_batch.iterrows():
             api_response.append({
-                "date": row['date'],
+                "date": row['date'].strftime("%Y-%m-%d %H:%M:%S") if hasattr(row['date'], 'strftime') else str(row['date']),
                 "users": int(row['daily_active_users']),
                 "source": "batch"
             })

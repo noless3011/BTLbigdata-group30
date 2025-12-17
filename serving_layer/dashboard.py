@@ -338,6 +338,15 @@ def show_students_view():
         
         if courses:
             df_courses = pd.DataFrame(courses)
+            # Clean dataframe: replace NaN/None with empty string and ensure consistent types
+            df_courses = df_courses.fillna(0)
+            # Convert all numeric columns to proper types
+            for col in df_courses.columns:
+                if df_courses[col].dtype == 'object':
+                    try:
+                        df_courses[col] = pd.to_numeric(df_courses[col], errors='ignore')
+                    except:
+                        pass
             st.dataframe(df_courses, use_container_width=True)
             
             # Course selection
