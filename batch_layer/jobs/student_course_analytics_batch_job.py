@@ -140,7 +140,7 @@ def compute_student_course_detailed(df_course, df_video, df_assessment):
     video_stats = df_video.groupBy("user_id", "course_id") \
         .agg(
             count("*").alias("videos_watched"),
-            spark_sum("duration_seconds").alias("watch_time_seconds")
+            spark_sum("watch_duration_seconds").alias("watch_time_seconds")
         )
     
     # Materials downloaded
