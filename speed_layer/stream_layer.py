@@ -24,6 +24,8 @@ spark = SparkSession.builder \
     .config("spark.jars", jar_list) \
     .config("spark.driver.extraClassPath", classpath) \
     .config("spark.executor.extraClassPath", classpath) \
+    .config("spark.sql.shuffle.partitions", "20") \
+    .config("spark.default.parallelism", "20") \
     .config("spark.hadoop.fs.s3a.endpoint", MINIO_ENDPOINT) \
     .config("spark.hadoop.fs.s3a.access.key", MINIO_ACCESS_KEY) \
     .config("spark.hadoop.fs.s3a.secret.key", MINIO_SECRET_KEY) \
@@ -31,6 +33,11 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
     .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+    .config("spark.hadoop.fs.s3a.connection.maximum", "20") \
+    .config("spark.hadoop.fs.s3a.threads.max", "15") \
+    .config("spark.hadoop.fs.s3a.connection.establish.timeout", "5000") \
+    .config("spark.hadoop.fs.s3a.attempts.maximum", "3") \
+    .config("spark.hadoop.fs.s3a.multipart.size", "104857600") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
@@ -174,7 +181,7 @@ query_dau = rt_active_users.writeStream \
     .format("parquet") \
     .option("path", "s3a://bucket-0/speed_views/active_users") \
     .option("checkpointLocation", "s3a://bucket-0/checkpoints/active_users") \
-    .trigger(processingTime="1 minutes") \
+    .trigger(processingTime="1 minute") \
     .start()
 
 # Write Stream 2: Course Popularity
@@ -183,7 +190,7 @@ query_course = rt_course_popularity.writeStream \
     .format("parquet") \
     .option("path", "s3a://bucket-0/speed_views/course_popularity") \
     .option("checkpointLocation", "s3a://bucket-0/checkpoints/course_popularity") \
-    .trigger(processingTime="1 minutes") \
+    .trigger(processingTime="1 minute") \
     .start()
 
 # Write Stream 3: Video Engagement
@@ -192,18 +199,19 @@ query_video = rt_video_engagement.writeStream \
     .format("parquet") \
     .option("path", "s3a://bucket-0/speed_views/video_engagement") \
     .option("checkpointLocation", "s3a://bucket-0/checkpoints/video_engagement") \
-    .trigger(processingTime="1 minutes") \
+    .trigger(processingTime="1 minute") \
     .start()
 
-# Optional: Console Debug Sink (for local testing visibility)
-# Only run this if we are not in 'production' or if explicitly needed. 
-# For now, I'll add one console sink for debugging.
-query_console = rt_active_users.writeStream \
-    .outputMode("complete") \
-    .format("console") \
-    .option("truncate", "false") \
-    .trigger(processingTime="10 seconds") \
-    .start()
+# Console output disabled to save memory
+# Re-enable for debugging by uncommenting below:
+# query_console = rt_active_users.writeStream \
+#     .outputMode("append") \
+#     .format("console") \
+#     .option("numRows", "5") \
+#     .option("truncate", "false") \
+#     .trigger(processingTime="2 minutes") \
+#     .start()
 
 print("Speed Layer Streams Started...")
+print(f"Active Queries: {len(spark.streams.active)}")
 spark.streams.awaitAnyTermination()
