@@ -50,13 +50,14 @@ def get_video_schema():
         StructField("timestamp", StringType(), False),
         StructField("video_id", StringType(), True),
         StructField("course_id", StringType(), True),
-        StructField("duration_seconds", IntegerType(), True)
+        StructField("watch_duration_seconds", IntegerType(), True),
+        StructField("session_id", StringType(), True)
     ])
 
 def compute_course_overview(df_course, df_video, df_assessment):
     """Overall course statistics"""
     # Enrollments per course
-    enrollments = df_course.filter(col("event_type") == "ENROLL_COURSE") \
+    enrollments = df_course.filter(col("event_type") == "COURSE_ENROLLED") \
         .groupBy("course_id") \
         .agg(countDistinct("user_id").alias("total_enrolled_students"))
     
@@ -65,7 +66,7 @@ def compute_course_overview(df_course, df_video, df_assessment):
         .agg(count("*").alias("total_videos_watched"))
     
     # Materials downloaded
-    materials = df_course.filter(col("event_type") == "DOWNLOAD_RESOURCE") \
+    materials = df_course.filter(col("event_type") == "DOWNLOAD_MATERIAL") \
         .groupBy("course_id") \
         .agg(count("*").alias("total_materials_downloaded"))
     
@@ -80,7 +81,7 @@ def compute_course_overview(df_course, df_video, df_assessment):
 def compute_student_overview(df_course, df_video, df_assessment, df_auth):
     """Overall student statistics"""
     # Courses per student
-    courses = df_course.filter(col("event_type") == "ENROLL_COURSE") \
+    courses = df_course.filter(col("event_type") == "COURSE_ENROLLED") \
         .groupBy("user_id") \
         .agg(countDistinct("course_id").alias("total_courses_enrolled"))
     
@@ -114,7 +115,7 @@ def compute_student_overview(df_course, df_video, df_assessment, df_auth):
 def compute_student_course_enrollment(df_course, df_video, df_assessment):
     """Student-course mapping with performance metrics"""
     # Base enrollment
-    enrollments = df_course.filter(col("event_type") == "ENROLL_COURSE") \
+    enrollments = df_course.filter(col("event_type") == "COURSE_ENROLLED") \
         .select("user_id", "course_id", col("timestamp_parsed").alias("enrollment_date"))
     
     # Videos watched per student-course
@@ -143,7 +144,7 @@ def compute_student_course_detailed(df_course, df_video, df_assessment):
         )
     
     # Materials downloaded
-    material_stats = df_course.filter(col("event_type") == "DOWNLOAD_RESOURCE") \
+    material_stats = df_course.filter(col("event_type") == "DOWNLOAD_MATERIAL") \
         .groupBy("user_id", "course_id") \
         .agg(count("*").alias("materials_downloaded"))
     
