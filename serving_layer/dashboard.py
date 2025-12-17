@@ -252,11 +252,27 @@ def show_students_view():
             selected_course = st.selectbox("View Course Details", ["Select..."] + course_ids)
             
             if selected_course != "Select...":
-                # Button to navigate to course view
-                if st.button(f"📚 View Full Course Details: {selected_course}"):
-                    st.session_state['selected_course'] = selected_course
-                    st.session_state['page'] = 'Courses'
-                    st.rerun()
+                st.markdown(f"### Performance: {selected_student} in {selected_course}")
+                
+                try:
+                    response = requests.get(
+                        f"{API_URL}/analytics/student/{selected_student}/course/{selected_course}"
+                    )
+                    perf = response.json() if response.status_code == 200 else {}
+                except:
+                    perf = {}
+                
+                if perf:
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("🎥 Videos Watched", perf.get('videos_watched', 0))
+                    col2.metric("⏱️ Watch Time (min)", round(perf.get('watch_time_minutes', 0), 1))
+                    col3.metric("📥 Materials Downloaded", perf.get('materials_downloaded', 0))
+                    
+                    # Button to navigate to course view
+                    if st.button(f"📚 View Full Course Details: {selected_course}"):
+                        st.session_state['selected_course'] = selected_course
+                        st.session_state['page'] = 'Courses'
+                        st.rerun()
         else:
             st.info("Student not enrolled in any courses yet")
 
