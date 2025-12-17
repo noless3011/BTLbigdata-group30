@@ -95,7 +95,8 @@ def show_overview_dashboard():
     
     with col1:
         current_users = summary.get('current_active_users', 0)
-        st.metric("👥 Current Active Users", current_users, delta="Live")
+        st.metric("👥 Current Active Users", current_users)
+        st.caption("🔴 Live")
     
     with col2:
         active_courses = summary.get('total_active_courses', 0)
