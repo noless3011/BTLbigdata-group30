@@ -36,77 +36,169 @@ auto_refresh = st.sidebar.checkbox("Auto Refresh (5s)", value=False)
 
 # ========== HELPER FUNCTIONS ==========
 
-def get_dau():
+def get_summary():
     try:
-        response = requests.get(f"{API_URL}/analytics/dau")
+        response = requests.get(f"{API_URL}/analytics/summary")
+        if response.status_code == 200:
+            return response.json()
+    except Exception as e:
+        st.error(f"Error fetching summary: {e}")
+    return {}
+
+def get_recent_activity(hours=1):
+    try:
+        response = requests.get(f"{API_URL}/analytics/recent_activity?hours={hours}")
+        if response.status_code == 200:
+            return response.json()
+    except Exception as e:
+        st.error(f"Error fetching recent activity: {e}")
+    return {}
+
+def get_student_engagement_distribution():
+    try:
+        response = requests.get(f"{API_URL}/analytics/student_engagement_distribution")
+        if response.status_code == 200:
+            return response.json()
+    except Exception as e:
+        st.error(f"Error fetching student distribution: {e}")
+    return {}
+
+def get_dau(hours=6):
+    try:
+        response = requests.get(f"{API_URL}/analytics/dau?hours={hours}")
         if response.status_code == 200:
             return response.json()
     except Exception as e:
         st.error(f"Error fetching DAU: {e}")
     return []
 
-def get_course_popularity():
+def get_course_popularity(limit=10):
     try:
-        response = requests.get(f"{API_URL}/analytics/course_popularity")
+        response = requests.get(f"{API_URL}/analytics/course_popularity?limit={limit}")
         if response.status_code == 200:
             return response.json()
     except Exception as e:
         st.error(f"Error fetching Course Popularity: {e}")
     return []
 
-def get_video_stats():
-    try:
-        response = requests.get(f"{API_URL}/analytics/realtime/video")
-        if response.status_code == 200:
-            return response.json()
-    except Exception as e:
-        st.error(f"Error fetching Video Stats: {e}")
-    return []
-
 # ========== PAGE: OVERVIEW DASHBOARD ==========
 
 def show_overview_dashboard():
-    st.title("🎓 University Learning Analytics - Overview")
-    st.markdown("Real-time insights from **Lambda Architecture** (Batch + Speed Layers)")
+    st.title("🎓 University Learning Analytics Dashboard")
+    st.markdown("Real-time oversight of university-wide activities")
     
+    # ===== ROW 1: KEY METRICS =====
+    st.subheader("📈 Key Metrics")
+    summary = get_summary()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        current_users = summary.get('current_active_users', 0)
+        st.metric("👥 Current Active Users", current_users, delta="Live")
+    
+    with col2:
+        active_courses = summary.get('total_active_courses', 0)
+        st.metric("📚 Active Courses (24h)", active_courses)
+    
+    with col3:
+        total_students = summary.get('total_students', 0)
+        st.metric("🎓 Total Students", total_students)
+    
+    with col4:
+        speed_status = summary.get('speed_layer_status', 'unknown')
+        status_emoji = "🟢" if speed_status == "healthy" else "🟡" if speed_status == "stale" else "🔴"
+        st.metric("🔌 System Status", f"{status_emoji} {speed_status.title()}")
+    
+    st.markdown("---")
+    
+    # ===== ROW 2: ACTIVITY OVERVIEW =====
+    st.subheader("📉 Activity Overview (Last 6 Hours)")
     col1, col2 = st.columns(2)
     
-    # DAU Trend
+    # User Activity Trend (Speed layer only for performance)
     with col1:
-        st.subheader("👥 User Activity Trend")
-        dau_data = get_dau()
+        st.markdown("**👥 User Activity Trend**")
+        dau_data = get_dau(hours=6)
         if dau_data:
             df_dau = pd.DataFrame(dau_data)
-            fig = px.line(df_dau, x="date", y="users", color="source", 
-                         title="Active Users (Batch + Speed)", markers=True)
-            st.plotly_chart(fig, use_container_width=True)
+            # Filter to speed layer only for real-time trend
+            df_speed = df_dau[df_dau['source'] == 'speed']
+            if not df_speed.empty:
+                df_speed['date'] = pd.to_datetime(df_speed['date'])
+                fig = px.line(df_speed, x="date", y="users", 
+                             title="Active Users (Real-time)", markers=True)
+                fig.update_layout(showlegend=False, height=300)
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Show peak
+                peak_users = df_speed['users'].max()
+                st.caption(f"🔺 Peak: {peak_users} users")
+            else:
+                st.info("No real-time data available")
         else:
-            st.info("No data available yet.")
+            st.info("No data available")
     
-    # Course Popularity
+    # Top Engaged Courses
     with col2:
-        st.subheader("📚 Top Popular Courses")
-        course_data = get_course_popularity()
+        st.markdown("**📚 Top 10 Engaged Courses**")
+        course_data = get_course_popularity(limit=10)
         if course_data:
             df_course = pd.DataFrame(course_data)
             fig = px.bar(df_course, x="course_id", y="interactions", 
-                        title="Course Interactions", color="interactions")
+                        title="Course Interactions", color="interactions",
+                        color_continuous_scale="Blues")
+            fig.update_layout(showlegend=False, height=300)
+            fig.update_xaxes(tickangle=-45)
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("No data available yet.")
+            st.info("No course data available")
     
-    # Video Engagement
-    st.subheader("🎥 Real-time Video Engagement")
-    video_data = get_video_stats()
-    if video_data:
-        df_video = pd.DataFrame(video_data)
-        if not df_video.empty:
-            df_video = df_video.sort_values("views", ascending=False).head(15)
-            fig = px.bar(df_video, x="video_id", y="views", 
-                        title="Top Videos (Current Window)", color="views")
+    st.markdown("---")
+    
+    # ===== ROW 3: ENGAGEMENT INSIGHTS =====
+    st.subheader("🎯 Engagement Insights")
+    col1, col2 = st.columns(2)
+    
+    # Content Consumption (Last Hour)
+    with col1:
+        st.markdown("**🎥 Content Consumption (Last Hour)**")
+        activity = get_recent_activity(hours=1)
+        
+        if activity:
+            consumption_data = pd.DataFrame([
+                {"Type": "Videos Watched", "Count": activity.get('videos_watched', 0)},
+                {"Type": "Materials Downloaded", "Count": activity.get('materials_downloaded', 0)}
+            ])
+            
+            fig = px.bar(consumption_data, x="Type", y="Count",
+                        title="Recent Activity", color="Type",
+                        color_discrete_map={"Videos Watched": "#3b82f6", "Materials Downloaded": "#10b981"})
+            fig.update_layout(showlegend=False, height=300)
             st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No video data available yet.")
+        else:
+            st.info("No activity data available")
+    
+    # Student Engagement Distribution
+    with col2:
+        st.markdown("**👥 Student Engagement Distribution**")
+        distribution = get_student_engagement_distribution()
+        
+        if distribution and sum(distribution.values()) > 0:
+            dist_data = pd.DataFrame([
+                {"Category": "Highly Active", "Students": distribution.get('highly_active', 0)},
+                {"Category": "Moderately Active", "Students": distribution.get('moderately_active', 0)},
+                {"Category": "Low Activity", "Students": distribution.get('low_activity', 0)},
+                {"Category": "Inactive", "Students": distribution.get('inactive', 0)}
+            ])
+            
+            fig = px.pie(dist_data, values="Students", names="Category",
+                        title="Student Activity Levels",
+                        color_discrete_sequence=["#10b981", "#3b82f6", "#f59e0b", "#ef4444"])
+            fig.update_layout(height=300)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No student data available")
 
 # ========== PAGE: COURSES VIEW ==========
 
