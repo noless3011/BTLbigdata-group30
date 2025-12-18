@@ -13,6 +13,11 @@ echo -e "${CYAN}===================================${NC}"
 echo -e "${CYAN}FULL SYSTEM VERIFICATION STARTING${NC}"
 echo -e "${CYAN}===================================${NC}"
 echo ""
+echo -e "${YELLOW}Verifying Complete Ingestion Pipeline:${NC}"
+echo "  Producer → Kafka → Batch Ingestion → Master Dataset"
+echo "  Master Dataset → Batch Jobs → Batch Views → Serving API"
+echo "  Kafka → Speed Layer → Speed Views → Serving API"
+echo ""
 
 # 1. Check Kafka Cluster
 echo -e "${YELLOW}[1/8] Checking Kafka Cluster...${NC}"
@@ -134,25 +139,123 @@ else
 fi
 echo ""
 
-# 7. Verify Speed Layer Views
-echo -e "${YELLOW}[7/8] Verifying Speed Layer Real-time Views...${NC}"
+# 7. Verify Batch Layer Views (Master Dataset → Batch Jobs → Batch Views)
+echo -e "${YELLOW}[7/10] Verifying Batch Layer Views...${NC}"
+if command -v mc &> /dev/null; then
+    BATCH_COUNT=$(mc ls --recursive minikube/bucket-0/batch_views/ 2>/dev/null | wc -l)
+    # Check for recent batch view files
+    RECENT_BATCH=$(mc ls --recursive minikube/bucket-0/batch_views/ 2>/dev/null | \
+        awk '{print $4, $5, $6}' | while read -r line; do
+            file_date=$(date -d "$line" +%s 2>/dev/null || echo 0)
+            now=$(date +%s)
+            age=$((now - file_date))
+            if [ $age -lt 3600 ]; then  # Less than 1 hour old
+                echo "recent"
+            fi
+        done | wc -l)
+else
+    BATCH_COUNT=$(docker run --rm --network host --entrypoint /bin/sh minio/mc -c \
+        "mc alias set minikube http://localhost:9000 minioadmin minioadmin > /dev/null 2>&1; \
+         mc ls --recursive minikube/bucket-0/batch_views/ 2>/dev/null | wc -l")
+    RECENT_BATCH=$(docker run --rm --network host --entrypoint /bin/sh minio/mc -c \
+        "mc alias set minikube http://localhost:9000 minioadmin minioadmin > /dev/null 2>&1; \
+         mc ls --recursive minikube/bucket-0/batch_views/ 2>/dev/null" | \
+        awk '{print $4, $5, $6}' | while read -r line; do
+            file_date=$(date -d "$line" +%s 2>/dev/null || echo 0)
+            now=$(date +%s)
+            age=$((now - file_date))
+            if [ $age -lt 3600 ]; then
+                echo "recent"
+            fi
+        done | wc -l)
+fi
+
+if [ "$BATCH_COUNT" -gt 0 ]; then
+    if [ "$RECENT_BATCH" -gt 0 ]; then
+        echo -e "${GREEN}✅ Batch Views: $BATCH_COUNT total files, $RECENT_BATCH modified in last hour${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Batch Views: $BATCH_COUNT files exist, but NONE modified recently (batch jobs may not be running)${NC}"
+    fi
+else
+    echo -e "${YELLOW}⚠️ Batch Views Empty (Run batch jobs to populate)${NC}"
+fi
+echo ""
+
+# 8. Verify Speed Layer Views (Kafka → Speed Layer → Speed Views)
+echo -e "${YELLOW}[8/10] Verifying Speed Layer Real-time Views...${NC}"
 if command -v mc &> /dev/null; then
     SPEED_COUNT=$(mc ls --recursive minikube/bucket-0/speed_views/ 2>/dev/null | wc -l)
+    # Check for files modified in the last 5 minutes (speed layer should update frequently)
+    RECENT_SPEED=$(mc ls --recursive minikube/bucket-0/speed_views/ 2>/dev/null | \
+        awk '{print $4, $5, $6}' | while read -r line; do
+            file_date=$(date -d "$line" +%s 2>/dev/null || echo 0)
+            now=$(date +%s)
+            age=$((now - file_date))
+            if [ $age -lt 300 ]; then  # Less than 5 minutes old
+                echo "recent"
+            fi
+        done | wc -l)
 else
     SPEED_COUNT=$(docker run --rm --network host --entrypoint /bin/sh minio/mc -c \
         "mc alias set minikube http://localhost:9000 minioadmin minioadmin > /dev/null 2>&1; \
          mc ls --recursive minikube/bucket-0/speed_views/ 2>/dev/null | wc -l")
+    RECENT_SPEED=$(docker run --rm --network host --entrypoint /bin/sh minio/mc -c \
+        "mc alias set minikube http://localhost:9000 minioadmin minioadmin > /dev/null 2>&1; \
+         mc ls --recursive minikube/bucket-0/speed_views/ 2>/dev/null" | \
+        awk '{print $4, $5, $6}' | while read -r line; do
+            file_date=$(date -d "$line" +%s 2>/dev/null || echo 0)
+            now=$(date +%s)
+            age=$((now - file_date))
+            if [ $age -lt 300 ]; then
+                echo "recent"
+            fi
+        done | wc -l)
 fi
 
 if [ "$SPEED_COUNT" -gt 0 ]; then
-    echo -e "${GREEN}✅ Speed Layer Views: Found $SPEED_COUNT files${NC}"
+    if [ "$RECENT_SPEED" -gt 0 ]; then
+        echo -e "${GREEN}✅ Speed Views: $SPEED_COUNT total files, $RECENT_SPEED modified in last 5 minutes${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Speed Views: $SPEED_COUNT files exist, but NONE modified recently (speed layer may be stalled)${NC}"
+    fi
 else
-    echo -e "${YELLOW}⚠️ Speed Layer Views Empty (May need time to process)${NC}"
+    echo -e "${YELLOW}⚠️ Speed Views Empty (Speed layer may need time to process)${NC}"
 fi
 echo ""
 
-# 8. Verify Serving Layer API
-echo -e "${YELLOW}[8/8] Verifying Serving Layer API...${NC}"
+# 9. Verify Data Consistency (Master Dataset vs Views)
+echo -e "${YELLOW}[9/10] Verifying Data Pipeline Consistency...${NC}"
+PIPELINE_OK=true
+PIPELINE_WARNINGS=""
+
+# Check if we have master data but no views at all
+if [ "$MASTER_COUNT" -gt 0 ] && [ "$SPEED_COUNT" -eq 0 ] && [ "$BATCH_COUNT" -eq 0 ]; then
+    PIPELINE_OK=false
+    PIPELINE_WARNINGS="${PIPELINE_WARNINGS}\n  ⚠️  Master dataset exists but NO views generated (processing layers not working)"
+fi
+
+# Check if views exist but master data is stale
+if [ "$MASTER_COUNT" -gt 0 ] && [ "$RECENT_FILES" -eq 0 ]; then
+    if [ "$RECENT_SPEED" -eq 0 ]; then
+        PIPELINE_WARNINGS="${PIPELINE_WARNINGS}\n  ⚠️  No recent data in master_dataset AND speed_views (ingestion stalled)"
+    fi
+fi
+
+# Check if speed layer is behind
+if [ "$MSG_COUNT" -gt 0 ] && [ "$SPEED_COUNT" -eq 0 ]; then
+    PIPELINE_WARNINGS="${PIPELINE_WARNINGS}\n  ⚠️  Kafka has messages but speed layer has no output (speed layer pod may be failing)"
+fi
+
+if [ "$PIPELINE_OK" = true ] && [ -z "$PIPELINE_WARNINGS" ]; then
+    echo -e "${GREEN}✅ Data pipeline consistency checks passed${NC}"
+else
+    echo -e "${YELLOW}Data Pipeline Warnings:${NC}"
+    echo -e "$PIPELINE_WARNINGS"
+fi
+echo ""
+
+# 10. Verify Serving Layer API
+echo -e "${YELLOW}[10/10] Verifying Serving Layer API...${NC}"
 kubectl port-forward service/serving-layer 8000:8000 -n default > /dev/null 2>&1 &
 API_PF_PID=$!
 sleep 5
@@ -174,16 +277,27 @@ echo -e "${CYAN}===================================${NC}"
 echo -e "${CYAN}VERIFICATION SUMMARY${NC}"
 echo -e "${CYAN}===================================${NC}"
 echo ""
-echo -e "${YELLOW}Ingestion Pipeline Status:${NC}"
-echo "  1. Kafka Topics: $([ "$ALL_TOPICS_OK" = true ] && echo -e "${GREEN}✓${NC}" || echo -e "${RED}✗${NC}")"
-echo "  2. Kafka Messages: $([ "$MSG_COUNT" -gt 0 ] && echo -e "${GREEN}✓${NC}" || echo -e "${RED}✗${NC}")"
-echo "  3. Master Dataset: $([ "$MASTER_COUNT" -gt 0 ] && echo -e "${GREEN}✓${NC}" || echo -e "${RED}✗${NC}")"
-echo "  4. Speed Views: $([ "$SPEED_COUNT" -gt 0 ] && echo -e "${GREEN}✓${NC}" || echo -e "${YELLOW}⚠${NC}")"
+echo -e "${YELLOW}Complete Ingestion Pipeline Status:${NC}"
+echo "  1. Kafka Cluster: $([ "$KAFKA_READY" == "True" ] && echo -e "${GREEN}✓${NC}" || echo -e "${RED}✗${NC}")"
+echo "  2. Kafka Topics: $([ "$ALL_TOPICS_OK" = true ] && echo -e "${GREEN}✓${NC}" || echo -e "${RED}✗${NC}")"
+echo "  3. Kafka Messages (Producer): $([ "$MSG_COUNT" -gt 0 ] && echo -e "${GREEN}✓${NC}" || echo -e "${RED}✗${NC}")"
+echo "  4. Master Dataset Ingestion: $([ "$MASTER_COUNT" -gt 0 ] && [ "$RECENT_FILES" -gt 0 ] && echo -e "${GREEN}✓${NC}" || echo -e "${YELLOW}⚠${NC}")"
+echo "  5. Batch Views: $([ "$BATCH_COUNT" -gt 0 ] && echo -e "${GREEN}✓${NC}" || echo -e "${YELLOW}⚠${NC}")"
+echo "  6. Speed Views: $([ "$SPEED_COUNT" -gt 0 ] && [ "$RECENT_SPEED" -gt 0 ] && echo -e "${GREEN}✓${NC}" || echo -e "${YELLOW}⚠${NC}")"
+echo "  7. Serving API: $([ "$HTTP_CODE" == "200" ] && echo -e "${GREEN}✓${NC}" || echo -e "${RED}✗${NC}")"
+echo ""
+echo -e "${YELLOW}Dataflow Health:${NC}"
+echo "  • Producer → Kafka: $([ "$MSG_COUNT" -gt 0 ] && echo -e "${GREEN}Active${NC}" || echo -e "${RED}No messages${NC}")"
+echo "  • Kafka → Master Dataset: $([ "$RECENT_FILES" -gt 0 ] && echo -e "${GREEN}Ingesting ($RECENT_FILES new files)${NC}" || echo -e "${YELLOW}Stalled${NC}")"
+echo "  • Master → Batch Views: $([ "$RECENT_BATCH" -gt 0 ] && echo -e "${GREEN}Processing ($RECENT_BATCH new files)${NC}" || echo -e "${YELLOW}Stalled or waiting${NC}")"
+echo "  • Kafka → Speed Views: $([ "$RECENT_SPEED" -gt 0 ] && echo -e "${GREEN}Streaming ($RECENT_SPEED new files)${NC}" || echo -e "${YELLOW}Stalled${NC}")"
 echo ""
 echo -e "${YELLOW}Next Steps (if issues found):${NC}"
-echo "  - If Kafka has no messages: Run producer (python ingestion_layer/producer.py)"
-echo "  - If Master Dataset empty: Run ingestion (python ingestion_layer/minio_ingest_k8s.py)"
-echo "  - If Speed Views empty: Check speed layer logs (kubectl logs -l app=speed-layer)"
+echo "  - If Kafka has no messages: Check producer (kubectl logs -f \$(cat /tmp/producer.pid 2>/dev/null) || python ingestion_layer/producer.py)"
+echo "  - If Master Dataset stalled: Check ingestion (kubectl logs -f \$(cat /tmp/ingestion.pid 2>/dev/null) || python ingestion_layer/minio_ingest_k8s.py)"
+echo "  - If Batch Views empty/stale: Run batch job (kubectl create job batch-manual --from=cronjob/batch-layer || run directly)"
+echo "  - If Speed Views stalled: Check speed layer logs (kubectl logs -l app=speed-layer -f)"
+echo "  - If API down: Check serving layer logs (kubectl logs -l app=serving-layer -f)"
 echo ""
 echo -e "${CYAN}===================================${NC}"
 
