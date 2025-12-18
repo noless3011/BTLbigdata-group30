@@ -143,22 +143,74 @@ echo ""
 echo -e "${YELLOW}[COMPLETE] System Deployed${NC}"
 echo ""
 echo -e "${CYAN}================================${NC}"
-echo -e "${CYAN}NEXT STEPS:${NC}"
+echo -e "${CYAN}STARTING DATA PIPELINE...${NC}"
 echo -e "${CYAN}================================${NC}"
 echo ""
-echo -e "${YELLOW}1. Open 2 NEW terminals and run:${NC}"
-echo "   Terminal 1: kubectl port-forward service/minio 9000:9000 -n minio"
-echo "   Terminal 2: kubectl port-forward service/minio 9001:9001 -n minio"
+
+# Export Kafka connection for local scripts
+export KAFKA_BOOTSTRAP_SERVERS=$(minikube ip):30092
+echo -e "${GREEN}✅ Kafka Bootstrap Server: $KAFKA_BOOTSTRAP_SERVERS${NC}"
 echo ""
-echo -e "${YELLOW}2. Configure Kafka Connection (Linux/Ubuntu):${NC}"
-echo "   export KAFKA_BOOTSTRAP_SERVERS=\$(minikube ip):30092"
+
+# Start MinIO port-forward in background
+echo -e "${YELLOW}Starting MinIO port-forward...${NC}"
+kubectl port-forward service/minio 9000:9000 -n minio > /tmp/minio-pf.log 2>&1 &
+MINIO_PF_PID=$!
+echo $MINIO_PF_PID > /tmp/minio-pf.pid
+sleep 3
+echo -e "${GREEN}✅ MinIO accessible at http://localhost:9000${NC}"
+echo "   (Port-forward PID: $MINIO_PF_PID - saved to /tmp/minio-pf.pid)"
 echo ""
-echo -e "${YELLOW}2. Wait 30 seconds for port-forwards to be ready${NC}"
+
+# Start Batch Ingestion
+echo -e "${YELLOW}Starting Batch Ingestion Layer...${NC}"
+echo "   Reading from Kafka → Writing to MinIO master_dataset"
+python3 ingestion_layer/minio_ingest_k8s.py > /tmp/ingestion.log 2>&1 &
+INGESTION_PID=$!
+echo $INGESTION_PID > /tmp/ingestion.pid
+sleep 5
+echo -e "${GREEN}✅ Batch Ingestion started (PID: $INGESTION_PID)${NC}"
+echo "   Logs: /tmp/ingestion.log"
 echo ""
-echo -e "${YELLOW}3. Run verification:${NC}"
-echo "   ./deployment/verify_minikube.sh"
+
+# Start Producer
+echo -e "${YELLOW}Starting Event Producer...${NC}"
+echo "   Generating events → Kafka topics"
+python3 ingestion_layer/producer.py > /tmp/producer.log 2>&1 &
+PRODUCER_PID=$!
+echo $PRODUCER_PID > /tmp/producer.pid
+sleep 3
+echo -e "${GREEN}✅ Producer started (PID: $PRODUCER_PID)${NC}"
+echo "   Logs: /tmp/producer.log"
 echo ""
+
 echo -e "${GREEN}================================${NC}"
 echo -e "${GREEN}DEPLOYMENT COMPLETE! ✅${NC}"
 echo -e "${GREEN}================================${NC}"
 echo ""
+echo -e "${CYAN}Running Processes:${NC}"
+echo "  - MinIO Port-Forward: PID $MINIO_PF_PID"
+echo "  - Batch Ingestion: PID $INGESTION_PID"
+echo "  - Event Producer: PID $PRODUCER_PID"
+echo ""
+echo -e "${CYAN}To Stop Background Processes:${NC}"
+echo "  kill \$(cat /tmp/minio-pf.pid) \$(cat /tmp/ingestion.pid) \$(cat /tmp/producer.pid)"
+echo ""
+echo -e "${YELLOW}NEXT STEPS:${NC}"
+echo ""
+echo "1. Wait 2-3 minutes for data to flow through the pipeline"
+echo ""
+echo "2. Run verification to check system health:"
+echo "   ./deployment/verify_minikube.sh"
+echo ""
+echo "3. Access services:"
+echo "   - MinIO Console: http://localhost:9000 (minioadmin/minioadmin)"
+echo "   - Serving API: kubectl port-forward service/serving-layer 8000:8000"
+echo "   - Dashboard: kubectl port-forward service/serving-layer 8501:8501"
+echo ""
+echo "4. Monitor logs:"
+echo "   - Ingestion: tail -f /tmp/ingestion.log"
+echo "   - Producer: tail -f /tmp/producer.log"
+echo "   - Speed Layer: kubectl logs -f -l app=speed-layer"
+echo ""
+echo -e "${GREEN}================================${NC}"
