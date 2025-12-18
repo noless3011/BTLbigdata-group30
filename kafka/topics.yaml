@@ -4,7 +4,7 @@
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: auth-topic
+  name: auth_topic
   namespace: kafka
   labels:
     strimzi.io/cluster: kafka-cluster
@@ -19,7 +19,7 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: assessment-topic
+  name: assessment_topic
   namespace: kafka
   labels:
     strimzi.io/cluster: kafka-cluster
@@ -34,7 +34,7 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: video-topic
+  name: video_topic
   namespace: kafka
   labels:
     strimzi.io/cluster: kafka-cluster
@@ -49,7 +49,7 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: course-topic
+  name: course_topic
   namespace: kafka
   labels:
     strimzi.io/cluster: kafka-cluster
@@ -64,7 +64,7 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: profile-topic
+  name: profile_topic
   namespace: kafka
   labels:
     strimzi.io/cluster: kafka-cluster
@@ -81,7 +81,7 @@ spec:
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:
-  name: notification-topic
+  name: notification_topic
   namespace: kafka
   labels:
     strimzi.io/cluster: kafka-cluster
