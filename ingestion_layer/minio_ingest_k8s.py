@@ -61,17 +61,35 @@ query = df.selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)", "topic", "
     .trigger(processingTime="1 minute") \
     .start()
 
+import time
+
 print("="*60)
 print("INGESTION LAYER STARTED SUCCESSFULLY")
 print("="*60)
 print("Destination: s3a://bucket-0/master_dataset/")
 print("Checkpoint: s3a://bucket-0/checkpoints/ingest/")
 print("Trigger: Every 1 minute")
+print("Monitoring batch progress (printing every 10s)...")
 print("="*60, flush=True)
 
 try:
+    while query.isActive:
+        if query.lastProgress:
+            rows = query.lastProgress.get('numInputRows', 0)
+            status = query.status.get('message', 'Processing')
+            print(f"[{time.strftime('%H:%M:%S')}] Status: {status} | Last Batch Rows: {rows}", flush=True)
+            if rows > 0:
+                print(f"  > Sources: {query.lastProgress.get('sources', [])}")
+        else:
+            print(f"[{time.strftime('%H:%M:%S')}] Query active, waiting for first batch...", flush=True)
+        
+        time.sleep(10)
+    
     query.awaitTermination()
 except KeyboardInterrupt:
     print("Stopping Ingestion Layer...")
+    query.stop()
+except Exception as e:
+    print(f"Error: {e}")
     query.stop()
 
