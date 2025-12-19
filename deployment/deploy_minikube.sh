@@ -70,26 +70,20 @@ echo ""
 
 # Step 8: Setup MinIO bucket
 echo -e "${YELLOW}[8/10] Configuring MinIO bucket...${NC}"
-echo -e "${CYAN}Starting port-forward for MinIO setup...${NC}"
-
-# Start port-forward in background
-kubectl port-forward service/minio 9000:9000 -n minio > /dev/null 2>&1 &
-PF_PID=$!
-sleep 5
+export MINIKUBE_IP=$(minikube ip)
+export MINIO_NODE_URL=http://$MINIKUBE_IP:30900
 
 # Configure mc and create bucket
-# Check if mc is installed, if not, try using a container or skip
 if command -v mc &> /dev/null; then
-    mc alias set minikube http://localhost:9000 minioadmin minioadmin
-    mc mb minikube/bucket-0
+    mc alias set minikube $MINIO_NODE_URL minioadmin minioadmin
+    mc mb minikube/bucket-0 --ignore-existing
+    echo -e "${YELLOW}Cleaning up old checkpoints...${NC}"
+    mc rm --recursive --force minikube/bucket-0/checkpoints/ingest/ 2>/dev/null || true
 else
     echo -e "${YELLOW}⚠️ 'mc' client not found locally. Trying to use docker run...${NC}"
-    docker run --network host --entrypoint /bin/sh minio/mc -c "mc alias set minikube http://localhost:9000 minioadmin minioadmin; mc mb minikube/bucket-0"
+    docker run --network host --entrypoint /bin/sh minio/mc -c "mc alias set minikube $MINIO_NODE_URL minioadmin minioadmin; mc mb minikube/bucket-0; mc rm --recursive --force minikube/bucket-0/checkpoints/ingest/"
 fi
-
-# Kill port-forward
-kill $PF_PID
-echo -e "${GREEN}✅ MinIO bucket created${NC}"
+echo -e "${GREEN}✅ MinIO bucket prepared (and checkpoints cleared)${NC}"
 echo ""
 
 # Step 9: Build Docker Images
