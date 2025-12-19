@@ -147,25 +147,20 @@ echo -e "${CYAN}STARTING DATA PIPELINE...${NC}"
 echo -e "${CYAN}================================${NC}"
 echo ""
 
-# Export Kafka connection for local scripts
-export KAFKA_BOOTSTRAP_SERVERS=$(minikube ip):30092
-echo -e "${GREEN}✅ Kafka Bootstrap Server: $KAFKA_BOOTSTRAP_SERVERS${NC}"
-echo ""
+# Export Connectivity for local scripts
+export MINIKUBE_IP=$(minikube ip)
+export KAFKA_BOOTSTRAP_SERVERS=$MINIKUBE_IP:30092
+export MINIO_ENDPOINT=http://$MINIKUBE_IP:30900
 
-# Start MinIO port-forward in background
-echo -e "${YELLOW}Starting MinIO port-forward...${NC}"
-kubectl port-forward service/minio 9000:9000 -n minio > /tmp/minio-pf.log 2>&1 &
-MINIO_PF_PID=$!
-echo $MINIO_PF_PID > /tmp/minio-pf.pid
-sleep 3
-echo -e "${GREEN}✅ MinIO accessible at http://localhost:9000${NC}"
-echo "   (Port-forward PID: $MINIO_PF_PID - saved to /tmp/minio-pf.pid)"
+echo -e "${GREEN}✅ Kafka Bootstrap Server: $KAFKA_BOOTSTRAP_SERVERS${NC}"
+echo -e "${GREEN}✅ MinIO API Endpoint: $MINIO_ENDPOINT${NC}"
 echo ""
 
 # Start Batch Ingestion
 echo -e "${YELLOW}Starting Batch Ingestion Layer...${NC}"
-echo "   Reading from Kafka → Writing to MinIO master_dataset"
-python3 ingestion_layer/minio_ingest_k8s.py > /tmp/ingestion.log 2>&1 &
+echo "   Reading from Kafka ($KAFKA_BOOTSTRAP_SERVERS) → Writing to MinIO ($MINIO_ENDPOINT)"
+# Explicitly pass env vars for safety
+KAFKA_BOOTSTRAP_SERVERS=$KAFKA_BOOTSTRAP_SERVERS MINIO_ENDPOINT=$MINIO_ENDPOINT python3 ingestion_layer/minio_ingest_k8s.py > /tmp/ingestion.log 2>&1 &
 INGESTION_PID=$!
 echo $INGESTION_PID > /tmp/ingestion.pid
 sleep 5
