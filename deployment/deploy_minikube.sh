@@ -15,8 +15,8 @@ echo -e "${CYAN}================================${NC}"
 echo ""
 
 # Step 1: Start Minikube
-echo -e "${YELLOW}[1/10] Starting Minikube cluster...${NC}"
-minikube start --cpus=4 --memory=8192 --driver=docker
+echo -e "${YELLOW}[1/10] Starting Minikube cluster (with upgraded resources)...${NC}"
+minikube start --cpus=6 --memory=12288 --driver=docker
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Failed to start Minikube${NC}"
     exit 1
