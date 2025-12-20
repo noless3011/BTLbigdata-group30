@@ -64,11 +64,13 @@ def get_summary_metrics():
         df_speed['start'] = pd.to_datetime(df_speed['start'])
         latest = df_speed.sort_values('start', ascending=False).iloc[0]
         summary["current_active_users"] = int(latest['active_users'])
-        # Speed layer is healthy if data is recent (within last 3 minutes)
-        # We use current time in VN timezone to match Spark's processing time
-        now_vn = datetime.now(vn_tz).replace(tzinfo=None)
-        diff_seconds = (now_vn - latest['start']).total_seconds()
-        if diff_seconds < 180:
+        
+        # Speed layer writes in UTC by default. Compare with UTC now.
+        from datetime import timezone
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        diff_seconds = (now_utc - latest['start']).total_seconds()
+        
+        if diff_seconds < 300: # 5 mins threshold for safety
             summary["speed_layer_status"] = "healthy"
         else:
             summary["speed_layer_status"] = "stale"
@@ -77,8 +79,9 @@ def get_summary_metrics():
     df_course_pop = read_parquet("speed_views/course_popularity")
     if not df_course_pop.empty:
         df_course_pop['end'] = pd.to_datetime(df_course_pop['end'])
-        now_vn = datetime.now(vn_tz).replace(tzinfo=None)
-        cutoff = now_vn - timedelta(hours=24)
+        from datetime import timezone
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        cutoff = now_utc - timedelta(hours=24)
         recent_courses = df_course_pop[df_course_pop['end'] >= cutoff]['course_id'].nunique()
         summary["total_active_courses"] = int(recent_courses)
     
@@ -102,7 +105,9 @@ def get_recent_activity(hours: int = 1):
     """
     from datetime import datetime, timedelta
     
-    cutoff = datetime.now(vn_tz).replace(tzinfo=None) - timedelta(hours=hours)
+    from datetime import timezone
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    cutoff = now_utc - timedelta(hours=hours)
     
     activity = {
         "videos_watched": 0,
@@ -185,10 +190,16 @@ def get_daily_active_users(hours: int = 6):
     # Speed path: speed_views/active_users
     # Schema: start, end, active_users
     df_speed = read_parquet("speed_views/active_users")
+    from datetime import timezone
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    
     if not df_speed.empty:
-        cutoff_time = now_vn - timedelta(hours=hours)
+        cutoff_time = now_utc - timedelta(hours=hours)
         df_speed['start'] = pd.to_datetime(df_speed['start'])
         df_speed = df_speed[df_speed['start'] >= cutoff_time]
+        
+        # Convert UTC back to VN for display
+        df_speed['start'] = df_speed['start'] + timedelta(hours=7)
     
     # Process Speed Data to match Batch Schema
     # Aggregating real-time windows to "Today's" count is an approximation.
