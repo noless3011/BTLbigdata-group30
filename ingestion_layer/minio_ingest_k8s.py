@@ -23,10 +23,13 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.fast.upload", "true") \
     .config("spark.hadoop.fs.s3a.fast.upload.buffer", "disk") \
     .config("spark.hadoop.fs.s3a.multipart.size", "67108864") \
+    .config("spark.hadoop.fs.s3a.multipart.purge.age", "86400") \
     .config("spark.hadoop.fs.s3a.connection.establish.timeout", "5000") \
     .config("spark.hadoop.fs.s3a.connection.timeout", "10000") \
     .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
     .config("spark.hadoop.fs.s3a.connection.ttl", "60000") \
+    .config("spark.hadoop.fs.s3a.attempts.maximum.interval", "20") \
+    .config("spark.hadoop.fs.s3a.assumed.role.session.duration", "3600") \
     .config("spark.sql.streaming.checkpointFileManagerClass", "org.apache.spark.sql.execution.streaming.filesystem.NewCheckpointFileManager") \
     .getOrCreate()
 

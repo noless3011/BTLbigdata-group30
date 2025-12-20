@@ -25,6 +25,8 @@ def create_spark_session(app_name="Batch_Job"):
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
         .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
         .config("spark.hadoop.fs.s3a.connection.ttl", "60000") \
+        .config("spark.hadoop.fs.s3a.multipart.purge.age", "86400") \
+        .config("spark.hadoop.fs.s3a.assumed.role.session.duration", "3600") \
         .config("spark.jars", jar_list) \
         .config("spark.driver.extraClassPath", classpath) \
         .config("spark.executor.extraClassPath", classpath) \
