@@ -31,13 +31,16 @@ spec:
           value: "minioadmin"
         resources:
           limits:
+            memory: "1Gi"
+            cpu: "1000m"
+          requests:
             memory: "512Mi"
-            cpu: "500m"
+            cpu: "250m"
       
       - name: serving-ui
         image: serving-layer:latest
         imagePullPolicy: Never
-        command: ["streamlit", "run", "serving_layer/dashboard.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
+        command: ["streamlit", "run", "serving_layer/dashboard.py", "--server.port", "8501", "--server.address", "0.0.0.0", "--server.enableCORS", "false"]
         ports:
         - containerPort: 8501
         env:
@@ -45,8 +48,11 @@ spec:
           value: "http://localhost:8000"
         resources:
           limits:
+            memory: "1Gi"
+            cpu: "1000m"
+          requests:
             memory: "512Mi"
-            cpu: "500m"
+            cpu: "250m"
 
 ---
 apiVersion: v1
