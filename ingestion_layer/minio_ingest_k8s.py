@@ -25,6 +25,8 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.multipart.size", "67108864") \
     .config("spark.hadoop.fs.s3a.connection.establish.timeout", "5000") \
     .config("spark.hadoop.fs.s3a.connection.timeout", "10000") \
+    .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
+    .config("spark.hadoop.fs.s3a.connection.ttl", "60000") \
     .config("spark.sql.streaming.checkpointFileManagerClass", "org.apache.spark.sql.execution.streaming.filesystem.NewCheckpointFileManager") \
     .getOrCreate()
 

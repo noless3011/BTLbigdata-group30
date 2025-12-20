@@ -38,6 +38,8 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.connection.establish.timeout", "5000") \
     .config("spark.hadoop.fs.s3a.attempts.maximum", "3") \
     .config("spark.hadoop.fs.s3a.multipart.size", "104857600") \
+    .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
+    .config("spark.hadoop.fs.s3a.connection.ttl", "60000") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
