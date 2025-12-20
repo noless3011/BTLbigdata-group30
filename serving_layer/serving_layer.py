@@ -77,7 +77,8 @@ def get_summary_metrics():
     df_course_pop = read_parquet("speed_views/course_popularity")
     if not df_course_pop.empty:
         df_course_pop['end'] = pd.to_datetime(df_course_pop['end'])
-        cutoff = datetime.now() - timedelta(hours=24)
+        now_vn = datetime.now(vn_tz).replace(tzinfo=None)
+        cutoff = now_vn - timedelta(hours=24)
         recent_courses = df_course_pop[df_course_pop['end'] >= cutoff]['course_id'].nunique()
         summary["total_active_courses"] = int(recent_courses)
     
@@ -101,7 +102,7 @@ def get_recent_activity(hours: int = 1):
     """
     from datetime import datetime, timedelta
     
-    cutoff = datetime.now() - timedelta(hours=hours)
+    cutoff = datetime.now(vn_tz).replace(tzinfo=None) - timedelta(hours=hours)
     
     activity = {
         "videos_watched": 0,
@@ -170,16 +171,13 @@ def get_student_engagement_distribution():
 def get_daily_active_users(hours: int = 6):
     """
     Get DAU by merging Batch Layer (Historical) and Speed Layer (Real-time)
-    Default returns last 6 hours for performance
-    """
-    from datetime import datetime, timedelta
-    
     # 1. Read Batch Data (Historical) - filter to recent hours
     # Batch path: batch_views/auth_daily_active_users
     # Schema: date, daily_active_users, total_sessions
     df_batch = read_parquet("batch_views/auth_daily_active_users")
+    now_vn = datetime.now(vn_tz).replace(tzinfo=None)
     if not df_batch.empty:
-        cutoff_time = datetime.now() - timedelta(hours=hours)
+        cutoff_time = now_vn - timedelta(hours=hours)
         df_batch['date'] = pd.to_datetime(df_batch['date'])
         df_batch = df_batch[df_batch['date'] >= cutoff_time]
     
@@ -188,7 +186,7 @@ def get_daily_active_users(hours: int = 6):
     # Schema: start, end, active_users
     df_speed = read_parquet("speed_views/active_users")
     if not df_speed.empty:
-        cutoff_time = datetime.now() - timedelta(hours=hours)
+        cutoff_time = now_vn - timedelta(hours=hours)
         df_speed['start'] = pd.to_datetime(df_speed['start'])
         df_speed = df_speed[df_speed['start'] >= cutoff_time]
     
