@@ -20,7 +20,8 @@ BOOTSTRAP_SERVERS = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092').
 
 producer = KafkaProducer(
     bootstrap_servers=BOOTSTRAP_SERVERS,
-    value_serializer=lambda x: json.dumps(x).encode('utf-8')
+    key_serializer=lambda k: k.encode('utf-8') if isinstance(k, str) else k,
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
 
 fake = Faker(['vi_VN', 'en_US'])  # Vietnamese and English locales
@@ -439,6 +440,7 @@ def generate_notification_event():
         "event_category": "NOTIFICATION",
         "event_type": event_type,
         "user_id": user_id,
+        "role": 'student' if user_id in STUDENT_IDS else 'teacher',
         "notification_id": f"NOTIF{random.randint(1, 10000)}",
         "timestamp": get_timestamp(),
         "notification_type": random.choice([
@@ -504,9 +506,10 @@ def simulate():
             # Send to Kafka with callbacks
             # We use user_id as the key to ensure all events for the same user go to the same partition
             # This is also REQUIRED for compacted topics like profile_topic
+            # The key_serializer now handles the encoding.
             producer.send(
                 topic, 
-                key=data['user_id'].encode('utf-8'),
+                key=data['user_id'],
                 value=data
             ).add_callback(on_send_success).add_errback(on_send_error)
             
