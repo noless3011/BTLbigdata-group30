@@ -462,7 +462,7 @@ def generate_notification_event():
 def simulate():
     """Main simulation loop - generates realistic event streams"""
     print("=" * 60)
-    print("UNIVERSITY LEARNING ANALYTICS - DATA PRODUCER")
+    print("UNIVERSITY LEARNING ANALYTICS - DATA PRODUCER (v2.0)")
     print("=" * 60)
     print(f"Students: {len(STUDENT_IDS)} | Teachers: {len(TEACHER_IDS)} | Courses: {len(COURSE_IDS)}")
     print(f"Kafka Topics: 6 (auth, assessment, video, course, profile, notification)")

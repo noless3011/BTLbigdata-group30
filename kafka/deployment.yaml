@@ -30,6 +30,16 @@ spec:
   kafka:
     version: 4.1.1
     metadataVersion: 4.1-IV1
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 250m
+      limits:
+        memory: 1536Mi
+        cpu: 1000m
+    jvmOptions:
+      "-Xms": "512m"
+      "-Xmx": "1g"
     listeners:
       - name: plain
         port: 9092
@@ -53,5 +63,15 @@ spec:
       default.replication.factor: 3
       min.insync.replicas: 2
   entityOperator:
-    topicOperator: {}
-    userOperator: {}
+    topicOperator:
+      resources:
+        requests:
+          memory: 256Mi
+        limits:
+          memory: 512Mi
+    userOperator:
+      resources:
+        requests:
+          memory: 256Mi
+        limits:
+          memory: 512Mi
