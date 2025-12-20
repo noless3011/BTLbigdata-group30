@@ -61,7 +61,7 @@ def get_summary_metrics():
     
     df_speed = read_parquet("speed_views/active_users")
     if not df_speed.empty:
-        df_speed['start'] = pd.to_datetime(df_speed['start'])
+        df_speed['start'] = pd.to_datetime(df_speed['start'], utc=True).dt.tz_localize(None)
         latest = df_speed.sort_values('start', ascending=False).iloc[0]
         summary["current_active_users"] = int(latest['active_users'])
         
@@ -76,7 +76,7 @@ def get_summary_metrics():
     # Total active courses (courses with recent activity in last 24 hours)
     df_course_pop = read_parquet("speed_views/course_popularity")
     if not df_course_pop.empty:
-        df_course_pop['end'] = pd.to_datetime(df_course_pop['end'])
+        df_course_pop['end'] = pd.to_datetime(df_course_pop['end'], utc=True).dt.tz_localize(None)
         cutoff = now_utc - timedelta(hours=24)
         recent_courses = df_course_pop[df_course_pop['end'] >= cutoff]['course_id'].nunique()
         summary["total_active_courses"] = int(recent_courses)
@@ -113,7 +113,7 @@ def get_recent_activity(hours: int = 1):
     # Videos from speed layer
     df_video = read_parquet("speed_views/video_engagement")
     if not df_video.empty:
-        df_video['end'] = pd.to_datetime(df_video['end'])
+        df_video['end'] = pd.to_datetime(df_video['end'], utc=True).dt.tz_localize(None)
         recent_videos = df_video[df_video['end'] >= cutoff]
         activity["videos_watched"] = int(recent_videos['views'].sum())
     
@@ -189,7 +189,7 @@ def get_daily_active_users(hours: int = 6):
     
     if not df_speed.empty:
         cutoff_time = now_utc - timedelta(hours=hours)
-        df_speed['start'] = pd.to_datetime(df_speed['start'])
+        df_speed['start'] = pd.to_datetime(df_speed['start'], utc=True).dt.tz_localize(None)
         df_speed = df_speed[df_speed['start'] >= cutoff_time]
         
         # Convert UTC back to VN for display
