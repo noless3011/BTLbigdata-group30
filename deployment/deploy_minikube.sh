@@ -1,4 +1,6 @@
 #!/bin/bash
+# System Configuration
+export TZ=Asia/Ho_Chi_Minh
 
 # Quick Start Script for Minikube Testing on Linux
 # Run this script to deploy everything at once

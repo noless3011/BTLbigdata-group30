@@ -3,6 +3,8 @@ import pandas as pd
 import os
 import s3fs
 from datetime import datetime
+import pytz
+vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
 
 app = FastAPI(title="University Learning Analytics API")
 
@@ -57,14 +59,16 @@ def get_summary_metrics():
         "speed_layer_status": "unknown"
     }
     
-    # Current active users from speed layer
     df_speed = read_parquet("speed_views/active_users")
     if not df_speed.empty:
         df_speed['start'] = pd.to_datetime(df_speed['start'])
         latest = df_speed.sort_values('start', ascending=False).iloc[0]
         summary["current_active_users"] = int(latest['active_users'])
-        # Speed layer is healthy if data is recent (within last 5 minutes)
-        if (datetime.now() - latest['start']).total_seconds() < 300:
+        # Speed layer is healthy if data is recent (within last 3 minutes)
+        # We use current time in VN timezone to match Spark's processing time
+        now_vn = datetime.now(vn_tz).replace(tzinfo=None)
+        diff_seconds = (now_vn - latest['start']).total_seconds()
+        if diff_seconds < 180:
             summary["speed_layer_status"] = "healthy"
         else:
             summary["speed_layer_status"] = "stale"
