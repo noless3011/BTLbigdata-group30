@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 import pandas as pd
 import os
 import s3fs
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import pytz
 vn_tz = pytz.timezone('Asia/Ho_Chi_Minh')
 
@@ -49,8 +49,6 @@ def get_summary_metrics():
     Get all key metrics for dashboard overview in one call
     Returns: current active users, total courses, total students, system health
     """
-    from datetime import datetime, timedelta
-    
     summary = {
         "current_active_users": 0,
         "total_active_courses": 0,
@@ -59,6 +57,8 @@ def get_summary_metrics():
         "speed_layer_status": "unknown"
     }
     
+    now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+    
     df_speed = read_parquet("speed_views/active_users")
     if not df_speed.empty:
         df_speed['start'] = pd.to_datetime(df_speed['start'])
@@ -66,8 +66,6 @@ def get_summary_metrics():
         summary["current_active_users"] = int(latest['active_users'])
         
         # Speed layer writes in UTC by default. Compare with UTC now.
-        from datetime import timezone
-        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
         diff_seconds = (now_utc - latest['start']).total_seconds()
         
         if diff_seconds < 300: # 5 mins threshold for safety
@@ -79,8 +77,6 @@ def get_summary_metrics():
     df_course_pop = read_parquet("speed_views/course_popularity")
     if not df_course_pop.empty:
         df_course_pop['end'] = pd.to_datetime(df_course_pop['end'])
-        from datetime import timezone
-        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
         cutoff = now_utc - timedelta(hours=24)
         recent_courses = df_course_pop[df_course_pop['end'] >= cutoff]['course_id'].nunique()
         summary["total_active_courses"] = int(recent_courses)
@@ -103,9 +99,8 @@ def get_recent_activity(hours: int = 1):
     Get recent activity stats for content consumption
     Returns: videos watched, materials downloaded in last N hours
     """
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     
-    from datetime import timezone
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
     cutoff = now_utc - timedelta(hours=hours)
     
@@ -190,7 +185,6 @@ def get_daily_active_users(hours: int = 6):
     # Speed path: speed_views/active_users
     # Schema: start, end, active_users
     df_speed = read_parquet("speed_views/active_users")
-    from datetime import timezone
     now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
     
     if not df_speed.empty:
