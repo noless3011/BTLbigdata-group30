@@ -13,7 +13,7 @@ from pyspark.sql.functions import (
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType
 import sys
 
-from spark_config import create_spark_session
+from spark_config import create_spark_session, read_topic_data
 
 def get_profile_schema():
     """Define schema for PROFILE events"""
@@ -179,7 +179,7 @@ def main(input_path, output_path):
     
     # ========== PROFILE PROCESSING ==========
     print(f"[PROFILE BATCH] Reading profile events from: {input_path}")
-    df_profile_raw = spark.read.parquet(f"{input_path}/topic=profile_topic")
+    df_profile_raw = read_topic_data(spark, input_path, "profile_topic")
     
     # Parse JSON body
     profile_schema = get_profile_schema()
@@ -207,7 +207,7 @@ def main(input_path, output_path):
     
     # ========== NOTIFICATION PROCESSING ==========
     print(f"[NOTIFICATION BATCH] Reading notification events from: {input_path}")
-    df_notif_raw = spark.read.parquet(f"{input_path}/topic=notification_topic")
+    df_notif_raw = read_topic_data(spark, input_path, "notification_topic")
 
     # Parse JSON body
     notif_schema = get_notification_schema()

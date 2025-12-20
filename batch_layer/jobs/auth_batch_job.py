@@ -14,7 +14,7 @@ from pyspark.sql.types import StructType, StructField, StringType, TimestampType
 import sys
 from datetime import datetime
 
-from spark_config import create_spark_session
+from spark_config import create_spark_session, read_topic_data
 
 def get_auth_schema():
     """Define schema for AUTH events"""
@@ -112,7 +112,7 @@ def main(input_path, output_path):
     print(f"[AUTH BATCH] Reading auth events from: {input_path}")
     
     # Read raw auth events from MinIO (partitioned by topic=auth_topic)
-    df_raw = spark.read.parquet(f"{input_path}/topic=auth_topic")
+    df_raw = read_topic_data(spark, input_path, "auth_topic")
     
     # Parse JSON body
     json_schema = get_auth_schema()

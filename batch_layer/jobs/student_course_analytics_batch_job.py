@@ -10,7 +10,7 @@ from pyspark.sql.functions import (
 )
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType, IntegerType
 import sys
-from spark_config import create_spark_session
+from spark_config import create_spark_session, read_topic_data
 
 def get_course_schema():
     """Schema for COURSE events"""
@@ -171,7 +171,7 @@ def main(input_path, output_path):
     print(f"[STUDENT-COURSE BATCH] Reading events from: {input_path}")
     
     # Read and parse COURSE events
-    df_course_raw = spark.read.parquet(f"{input_path}/topic=course_topic")
+    df_course_raw = read_topic_data(spark, input_path, "course_topic")
     course_schema = get_course_schema()
     df_course = df_course_raw \
         .withColumn("data", from_json(col("value").cast("string"), course_schema)) \
@@ -180,7 +180,7 @@ def main(input_path, output_path):
         .filter(col("role") == "student")  # Only student events
     
     # Read and parse VIDEO events
-    df_video_raw = spark.read.parquet(f"{input_path}/topic=video_topic")
+    df_video_raw = read_topic_data(spark, input_path, "video_topic")
     video_schema = get_video_schema()
     df_video = df_video_raw \
         .withColumn("data", from_json(col("value").cast("string"), video_schema)) \
@@ -189,7 +189,7 @@ def main(input_path, output_path):
         .filter(col("role") == "student")
     
     # Read and parse ASSESSMENT events
-    df_assessment_raw = spark.read.parquet(f"{input_path}/topic=assessment_topic")
+    df_assessment_raw = read_topic_data(spark, input_path, "assessment_topic")
     assessment_schema = get_assessment_schema()
     df_assessment = df_assessment_raw \
         .withColumn("data", from_json(col("value").cast("string"), assessment_schema)) \
@@ -199,7 +199,7 @@ def main(input_path, output_path):
     
     # Read AUTH for login stats
     from auth_batch_job import get_auth_schema
-    df_auth_raw = spark.read.parquet(f"{input_path}/topic=auth_topic")
+    df_auth_raw = read_topic_data(spark, input_path, "auth_topic")
     auth_schema = get_auth_schema()
     df_auth = df_auth_raw \
         .withColumn("data", from_json(col("value").cast("string"), auth_schema)) \

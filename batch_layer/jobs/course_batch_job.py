@@ -13,7 +13,7 @@ from pyspark.sql.functions import (
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType, IntegerType
 import sys
 
-from spark_config import create_spark_session
+from spark_config import create_spark_session, read_topic_data
 
 def get_course_schema():
     """Define schema for COURSE events"""
@@ -144,7 +144,7 @@ def main(input_path, output_path):
     print(f"[COURSE BATCH] Reading course events from: {input_path}")
     
     # Read raw course events from MinIO
-    df_raw = spark.read.parquet(f"{input_path}/topic=course_topic")
+    df_raw = read_topic_data(spark, input_path, "course_topic")
     
     # Parse JSON body
     json_schema = get_course_schema()

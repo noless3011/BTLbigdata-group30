@@ -13,7 +13,7 @@ from pyspark.sql.functions import (
 from pyspark.sql.types import StructType, StructField, StringType, TimestampType, IntegerType
 import sys
 
-from spark_config import create_spark_session
+from spark_config import create_spark_session, read_topic_data
 
 def get_assessment_schema():
     """Define schema for ASSESSMENT events"""
@@ -173,7 +173,7 @@ def main(input_path, output_path):
     print(f"[ASSESSMENT BATCH] Reading assessment events from: {input_path}")
     
     # Read raw assessment events from MinIO
-    df_raw = spark.read.parquet(f"{input_path}/topic=assessment_topic")
+    df_raw = read_topic_data(spark, input_path, "assessment_topic")
     
     # Parse JSON body
     json_schema = get_assessment_schema()
