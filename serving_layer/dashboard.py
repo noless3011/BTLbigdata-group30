@@ -126,6 +126,7 @@ def show_overview_dashboard():
             # Filter to speed layer only for real-time trend
             df_speed = df_dau[df_dau['source'] == 'speed']
             if not df_speed.empty:
+                df_speed = df_speed.sort_values('date').reset_index(drop=True)
                 df_speed['date'] = pd.to_datetime(df_speed['date'])
                 fig = px.line(df_speed, x="date", y="users", 
                              title="Active Users (Real-time)", markers=True)
@@ -145,7 +146,7 @@ def show_overview_dashboard():
         st.markdown("**📚 Top 10 Engaged Courses**")
         course_data = get_course_popularity(limit=10)
         if course_data:
-            df_course = pd.DataFrame(course_data)
+            df_course = pd.DataFrame(course_data).reset_index(drop=True)
             fig = px.bar(df_course, x="course_id", y="interactions", 
                         title="Course Interactions", color="interactions",
                         color_continuous_scale="Blues")
@@ -337,7 +338,7 @@ def show_students_view():
             courses = []
         
         if courses:
-            df_courses = pd.DataFrame(courses)
+            df_courses = pd.DataFrame(courses).reset_index(drop=True)
             # Clean dataframe: replace NaN/None with empty string and ensure consistent types
             df_courses = df_courses.fillna(0)
             # Convert all numeric columns to proper types
