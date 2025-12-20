@@ -171,6 +171,7 @@ def get_student_engagement_distribution():
 def get_daily_active_users(hours: int = 6):
     """
     Get DAU by merging Batch Layer (Historical) and Speed Layer (Real-time)
+    """
     # 1. Read Batch Data (Historical) - filter to recent hours
     # Batch path: batch_views/auth_daily_active_users
     # Schema: date, daily_active_users, total_sessions
