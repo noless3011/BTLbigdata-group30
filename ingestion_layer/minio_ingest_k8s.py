@@ -30,7 +30,6 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.connection.ttl", "60000") \
     .config("spark.hadoop.fs.s3a.attempts.maximum.interval", "20") \
     .config("spark.hadoop.fs.s3a.assumed.role.session.duration", "3600") \
-    .config("spark.sql.streaming.checkpointFileManagerClass", "org.apache.spark.sql.execution.streaming.filesystem.NewCheckpointFileManager") \
     .getOrCreate()
 
 # Start Metadata Printing
