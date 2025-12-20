@@ -502,7 +502,13 @@ def simulate():
                 print(f"!!! Error sending to Kafka: {excp}", flush=True)
 
             # Send to Kafka with callbacks
-            producer.send(topic, data).add_callback(on_send_success).add_errback(on_send_error)
+            # We use user_id as the key to ensure all events for the same user go to the same partition
+            # This is also REQUIRED for compacted topics like profile_topic
+            producer.send(
+                topic, 
+                key=data['user_id'].encode('utf-8'),
+                value=data
+            ).add_callback(on_send_success).add_errback(on_send_error)
             
             # Update counters
             event_category = data['event_category']
