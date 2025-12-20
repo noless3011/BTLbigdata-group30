@@ -12,8 +12,9 @@ def create_spark_session(app_name="Batch_Job"):
     print(jars)
     
     # JAR paths
-    jar_list = "/app/jars/hadoop-aws-3.3.4.jar,/app/jars/aws-java-sdk-bundle-1.12.262.jar"
-    classpath = "/app/jars/hadoop-aws-3.3.4.jar:/app/jars/aws-java-sdk-bundle-1.12.262.jar"
+    # Use Maven coordinates for automatic dependency resolution
+    # This prevents missing class errors (like com.datastax.spark.connector.util.Logging)
+    packages = "org.apache.hadoop:hadoop-aws:3.3.4,com.datastax.spark:spark-cassandra-connector_2.12:3.4.1"
 
     return SparkSession.builder \
         .appName(app_name) \
@@ -23,8 +24,10 @@ def create_spark_session(app_name="Batch_Job"):
         .config("spark.hadoop.fs.s3a.path.style.access", "true") \
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
         .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
-        .config("spark.jars", jar_list) \
-        .config("spark.driver.extraClassPath", classpath) \
-        .config("spark.executor.extraClassPath", classpath) \
+        .config("spark.cassandra.connection.host", os.environ.get("CASSANDRA_HOST", "cassandra")) \
+        .config("spark.cassandra.connection.port", "9042") \
+        .config("spark.cassandra.auth.username", "cassandra") \
+        .config("spark.cassandra.auth.password", "cassandra") \
+        .config("spark.jars.packages", packages) \
         .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
         .getOrCreate()

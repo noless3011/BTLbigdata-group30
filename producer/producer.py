@@ -4,25 +4,27 @@ import random
 from datetime import datetime, timedelta
 from kafka import KafkaProducer
 from faker import Faker
+from dotenv import load_dotenv
 
 import os
 
+load_dotenv()
+
 # Cấu hình Kafka
-KAFKA_TOPIC_AUTH = 'auth_topic'
-KAFKA_TOPIC_ASSESSMENT = 'assessment_topic'
-KAFKA_TOPIC_VIDEO = 'video_topic'
-KAFKA_TOPIC_COURSE = 'course_topic'
-KAFKA_TOPIC_PROFILE = 'profile_topic'
-KAFKA_TOPIC_NOTIFICATION = 'notification_topic'
+KAFKA_TOPIC_AUTH = 'auth-topic'
+KAFKA_TOPIC_ASSESSMENT = 'assessment-topic'
+KAFKA_TOPIC_VIDEO = 'video-topic'
+KAFKA_TOPIC_COURSE = 'course-topic'
+KAFKA_TOPIC_PROFILE = 'profile-topic'
+KAFKA_TOPIC_NOTIFICATION = 'notification-topic'
 
 # Read from env or default to localhost:9092
-BOOTSTRAP_SERVERS = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092').split(',')
+BOOTSTRAP_SERVERS = os.environ.get('KAFKA_BOOTSTRAP_SERVERS', 'kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092').split(',')
 
-producer = KafkaProducer(
-    bootstrap_servers=BOOTSTRAP_SERVERS,
-    value_serializer=lambda x: json.dumps(x).encode('utf-8')
-)
-
+# producer = KafkaProducer(
+#     bootstrap_servers=['127.0.0.1:9092'],
+#     value_serializer=lambda x: json.dumps(x).encode('utf-8')
+# )
 fake = Faker(['vi_VN', 'en_US'])  # Vietnamese and English locales
 
 # Danh sách ID giả định
@@ -475,7 +477,15 @@ def simulate():
         'PROFILE': 0,
         'NOTIFICATION': 0
     }
-    
+    print("producer")
+    producer = KafkaProducer(
+        bootstrap_servers=BOOTSTRAP_SERVERS,
+        value_serializer=lambda x: json.dumps(x).encode('utf-8'),
+        request_timeout_ms=30000,
+        metadata_max_age_ms=10000,
+        retries=5
+    )
+    print("producer done")
     try:
         while True:
             # Weighted random selection (more realistic distribution)
@@ -491,11 +501,12 @@ def simulate():
                 weights=[15, 25, 35, 18, 3, 4],  # Video and assessment are most common
                 k=1
             )[0]
-            
             topic, data = event_generators()
             
             # Send to Kafka
+            print("topic")
             producer.send(topic, data)
+            print("topic done")
             
             # Update counters
             event_category = data['event_category']

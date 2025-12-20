@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: lms-producer
+  namespace: kafka
+spec:
+  restartPolicy: Never
+  containers:
+    - name: lms-producer
+      image: lms-producer:latest
+      imagePullPolicy: Never
+      env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092

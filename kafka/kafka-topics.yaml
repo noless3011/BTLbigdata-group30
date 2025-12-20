@@ -1,6 +1,3 @@
-# Kafka Topics Configuration for Student Learning Analytics
-# 6 topics for different event categories
-
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaTopic
 metadata:

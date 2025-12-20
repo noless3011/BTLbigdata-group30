@@ -1,0 +1,1 @@
+- Install Docker, Minikube, mc

@@ -190,30 +190,37 @@ def main(input_path, output_path):
     print("[VIDEO BATCH] Computing total video watch time per student per video...")
     total_watch_time = compute_total_video_watch_time(df)
     total_watch_time.write.mode("overwrite").parquet(f"{output_path}/video_total_watch_time")
+    total_watch_time.write.format("org.apache.spark.sql.cassandra").options(table="video_total_watch_time", keyspace="lms_analytics").mode("append").save()
     
     print("[VIDEO BATCH] Computing student video engagement per course...")
     student_engagement = compute_student_video_engagement(df)
     student_engagement.write.mode("overwrite").parquet(f"{output_path}/video_student_engagement")
+    student_engagement.write.format("org.apache.spark.sql.cassandra").options(table="video_student_engagement", keyspace="lms_analytics").mode("append").save()
     
     print("[VIDEO BATCH] Computing video popularity metrics...")
     video_popularity = compute_video_popularity(df)
     video_popularity.write.mode("overwrite").parquet(f"{output_path}/video_popularity")
+    video_popularity.write.format("org.apache.spark.sql.cassandra").options(table="video_popularity", keyspace="lms_analytics").mode("append").save()
     
     print("[VIDEO BATCH] Computing daily video engagement...")
     daily_engagement = compute_daily_video_engagement(df)
     daily_engagement.write.mode("overwrite").parquet(f"{output_path}/video_daily_engagement")
+    daily_engagement.write.format("org.apache.spark.sql.cassandra").options(table="video_daily_engagement", keyspace="lms_analytics").mode("append").save()
     
     print("[VIDEO BATCH] Computing course video metrics...")
     course_metrics = compute_course_video_completion_rate(df)
     course_metrics.write.mode("overwrite").parquet(f"{output_path}/video_course_metrics")
+    course_metrics.write.format("org.apache.spark.sql.cassandra").options(table="video_course_metrics", keyspace="lms_analytics").mode("append").save()
     
     print("[VIDEO BATCH] Computing student-course-video summary...")
     student_course_summary = compute_student_course_video_summary(df)
     student_course_summary.write.mode("overwrite").parquet(f"{output_path}/video_student_course_summary")
+    student_course_summary.write.format("org.apache.spark.sql.cassandra").options(table="video_student_course_summary", keyspace="lms_analytics").mode("append").save()
     
     print("[VIDEO BATCH] Computing video drop-off indicators...")
     drop_off = compute_video_drop_off_indicators(df)
     drop_off.write.mode("overwrite").parquet(f"{output_path}/video_drop_off_indicators")
+    drop_off.write.format("org.apache.spark.sql.cassandra").options(table="video_drop_off_indicators", keyspace="lms_analytics").mode("append").save()
     
     print("[VIDEO BATCH] Video batch job completed successfully!")
     spark.stop()

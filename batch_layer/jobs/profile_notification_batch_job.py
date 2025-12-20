@@ -192,18 +192,22 @@ def main(input_path, output_path):
     print("[PROFILE BATCH] Computing profile update frequency...")
     update_freq = compute_profile_update_frequency(df_profile)
     update_freq.write.mode("overwrite").parquet(f"{output_path}/profile_update_frequency")
+    update_freq.write.format("org.apache.spark.sql.cassandra").options(table="profile_update_frequency", keyspace="lms_analytics").mode("append").save()
     
     print("[PROFILE BATCH] Computing profile field changes...")
     field_changes = compute_profile_field_changes(df_profile)
     field_changes.write.mode("overwrite").parquet(f"{output_path}/profile_field_changes")
+    field_changes.write.format("org.apache.spark.sql.cassandra").options(table="profile_field_changes", keyspace="lms_analytics").mode("append").save()
     
     print("[PROFILE BATCH] Computing avatar change stats...")
     avatar_stats = compute_avatar_change_stats(df_profile)
     avatar_stats.write.mode("overwrite").parquet(f"{output_path}/profile_avatar_changes")
+    avatar_stats.write.format("org.apache.spark.sql.cassandra").options(table="profile_avatar_changes", keyspace="lms_analytics").mode("append").save()
     
     print("[PROFILE BATCH] Computing daily profile activity...")
     daily_profile = compute_daily_profile_activity(df_profile)
     daily_profile.write.mode("overwrite").parquet(f"{output_path}/profile_daily_activity")
+    daily_profile.write.format("org.apache.spark.sql.cassandra").options(table="profile_daily_activity", keyspace="lms_analytics").mode("append").save()
     
     # ========== NOTIFICATION PROCESSING ==========
     print(f"[NOTIFICATION BATCH] Reading notification events from: {input_path}")
@@ -220,26 +224,32 @@ def main(input_path, output_path):
     print("[NOTIFICATION BATCH] Computing delivery statistics...")
     delivery_stats = compute_notification_delivery_stats(df_notif)
     delivery_stats.write.mode("overwrite").parquet(f"{output_path}/notification_delivery_stats")
+    delivery_stats.write.format("org.apache.spark.sql.cassandra").options(table="notification_delivery_stats", keyspace="lms_analytics").mode("append").save()
     
     print("[NOTIFICATION BATCH] Computing engagement metrics...")
     engagement = compute_notification_engagement(df_notif)
     engagement.write.mode("overwrite").parquet(f"{output_path}/notification_engagement")
+    engagement.write.format("org.apache.spark.sql.cassandra").options(table="notification_engagement", keyspace="lms_analytics").mode("append").save()
     
     print("[NOTIFICATION BATCH] Computing click-through rates...")
     ctr = compute_notification_click_through_rate(df_notif)
     ctr.write.mode("overwrite").parquet(f"{output_path}/notification_click_through_rate")
+    ctr.write.format("org.apache.spark.sql.cassandra").options(table="notification_click_through_rate", keyspace="lms_analytics").mode("append").save()
     
     print("[NOTIFICATION BATCH] Computing user notification preferences...")
     preferences = compute_user_notification_preferences(df_notif)
     preferences.write.mode("overwrite").parquet(f"{output_path}/notification_user_preferences")
+    preferences.write.format("org.apache.spark.sql.cassandra").options(table="notification_user_preferences", keyspace="lms_analytics").mode("append").save()
     
     print("[NOTIFICATION BATCH] Computing daily notification activity...")
     daily_notif = compute_daily_notification_activity(df_notif)
     daily_notif.write.mode("overwrite").parquet(f"{output_path}/notification_daily_activity")
+    daily_notif.write.format("org.apache.spark.sql.cassandra").options(table="notification_daily_activity", keyspace="lms_analytics").mode("append").save()
     
     print("[NOTIFICATION BATCH] Computing user notification summary...")
     summary = compute_user_notification_summary(df_notif)
     summary.write.mode("overwrite").parquet(f"{output_path}/notification_user_summary")
+    summary.write.format("org.apache.spark.sql.cassandra").options(table="notification_user_summary", keyspace="lms_analytics").mode("append").save()
     
     print("[PROFILE & NOTIFICATION BATCH] Batch job completed successfully!")
     spark.stop()

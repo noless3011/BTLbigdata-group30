@@ -188,30 +188,37 @@ def main(input_path, output_path):
     print("[ASSESSMENT BATCH] Computing student submission stats...")
     submission_stats = compute_student_submission_stats(df)
     submission_stats.write.mode("overwrite").parquet(f"{output_path}/assessment_student_submissions")
-    
+    submission_stats.write.format("org.apache.spark.sql.cassandra").options(table="assessment_student_submissions", keyspace="lms_analytics").mode("append").save()
+
     print("[ASSESSMENT BATCH] Computing assignment engagement timeline...")
     engagement_timeline = compute_assignment_engagement_timeline(df)
     engagement_timeline.write.mode("overwrite").parquet(f"{output_path}/assessment_engagement_timeline")
+    engagement_timeline.write.format("org.apache.spark.sql.cassandra").options(table="assessment_engagement_timeline", keyspace="lms_analytics").mode("append").save()
     
     print("[ASSESSMENT BATCH] Computing quiz performance...")
     quiz_performance = compute_quiz_performance(df)
     quiz_performance.write.mode("overwrite").parquet(f"{output_path}/assessment_quiz_performance")
+    quiz_performance.write.format("org.apache.spark.sql.cassandra").options(table="assessment_quiz_performance", keyspace="lms_analytics").mode("append").save()
     
     print("[ASSESSMENT BATCH] Computing grading stats...")
     grading_stats = compute_grading_stats(df)
     grading_stats.write.mode("overwrite").parquet(f"{output_path}/assessment_grading_stats")
+    grading_stats.write.format("org.apache.spark.sql.cassandra").options(table="assessment_grading_stats", keyspace="lms_analytics").mode("append").save()
     
     print("[ASSESSMENT BATCH] Computing teacher grading workload...")
     teacher_workload = compute_teacher_grading_workload(df)
     teacher_workload.write.mode("overwrite").parquet(f"{output_path}/assessment_teacher_workload")
+    teacher_workload.write.format("org.apache.spark.sql.cassandra").options(table="assessment_teacher_workload", keyspace="lms_analytics").mode("append").save()
     
     print("[ASSESSMENT BATCH] Computing submission distribution...")
     submission_dist = compute_assignment_submission_distribution(df)
     submission_dist.write.mode("overwrite").parquet(f"{output_path}/assessment_submission_distribution")
+    submission_dist.write.format("org.apache.spark.sql.cassandra").options(table="assessment_submission_distribution", keyspace="lms_analytics").mode("append").save()
     
     print("[ASSESSMENT BATCH] Computing overall student performance...")
     overall_perf = compute_student_overall_performance(df)
     overall_perf.write.mode("overwrite").parquet(f"{output_path}/assessment_student_overall_performance")
+    overall_perf.write.format("org.apache.spark.sql.cassandra").options(table="assessment_student_overall_performance", keyspace="lms_analytics").mode("append").save()
     
     print("[ASSESSMENT BATCH] Assessment batch job completed successfully!")
     spark.stop()

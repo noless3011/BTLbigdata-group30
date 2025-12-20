@@ -127,22 +127,27 @@ def main(input_path, output_path):
     print("[AUTH BATCH] Computing daily active users...")
     dau = compute_daily_active_users(df)
     dau.write.mode("overwrite").parquet(f"{output_path}/auth_daily_active_users")
-    
+    dau.write.format("org.apache.spark.sql.cassandra").options(table="auth_daily_active_users", keyspace="lms_analytics").mode("append").save()
+
     print("[AUTH BATCH] Computing hourly login patterns...")
     hourly_patterns = compute_hourly_login_patterns(df)
     hourly_patterns.write.mode("overwrite").parquet(f"{output_path}/auth_hourly_login_patterns")
+    hourly_patterns.write.format("org.apache.spark.sql.cassandra").options(table="auth_hourly_login_patterns", keyspace="lms_analytics").mode("append").save()
     
     print("[AUTH BATCH] Computing user session metrics...")
     session_metrics = compute_user_session_metrics(df)
     session_metrics.write.mode("overwrite").parquet(f"{output_path}/auth_user_session_metrics")
+    session_metrics.write.format("org.apache.spark.sql.cassandra").options(table="auth_user_session_metrics", keyspace="lms_analytics").mode("append").save()
     
     print("[AUTH BATCH] Computing user activity summary...")
     activity_summary = compute_user_activity_summary(df)
     activity_summary.write.mode("overwrite").parquet(f"{output_path}/auth_user_activity_summary")
+    activity_summary.write.format("org.apache.spark.sql.cassandra").options(table="auth_user_activity_summary", keyspace="lms_analytics").mode("append").save()
     
     print("[AUTH BATCH] Computing registration analytics...")
     registration_analytics = compute_registration_analytics(df)
     registration_analytics.write.mode("overwrite").parquet(f"{output_path}/auth_registration_analytics")
+    registration_analytics.write.format("org.apache.spark.sql.cassandra").options(table="auth_registration_analytics", keyspace="lms_analytics").mode("append").save()
     
     print("[AUTH BATCH] Auth batch job completed successfully!")
     spark.stop()

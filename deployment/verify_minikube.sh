@@ -40,7 +40,7 @@ echo -e "${YELLOW}[3/6] Generating Test Data (Producer)...${NC}"
 export KAFKA_BOOTSTRAP_SERVERS=$(minikube ip):30092
 # Run producer for 10 seconds (requires modifying producer to support timeout or just running it briefly)
 # We will just run it in background and kill it
-python3 ingestion_layer/producer.py > producer.log 2>&1 &
+python3 ./producer.py > producer.log 2>&1 &
 PROD_PID=$!
 echo "   Producer running (PID $PROD_PID)... waiting 15s..."
 sleep 15

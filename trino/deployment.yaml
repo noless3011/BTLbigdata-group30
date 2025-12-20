@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trino
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trino
+  template:
+    metadata:
+      labels:
+        app: trino
+    spec:
+      containers:
+      - name: trino
+        image: trinodb/trino:405
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: catalog-volume
+          mountPath: /etc/trino/catalog
+      volumes:
+      - name: catalog-volume
+        configMap:
+          name: trino-catalog
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trino
+  namespace: default
+spec:
+  type: NodePort
+  selector:
+    app: trino
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30080

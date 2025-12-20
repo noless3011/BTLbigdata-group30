@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: kafka-ingestion
-  namespace: kafka
+  namespace: spark
 spec:
   ttlSecondsAfterFinished: 3600  # Clean up 1 hour after completion
   template:
@@ -14,10 +14,10 @@ spec:
       containers:
       - name: spark-ingestion
         image: ingestion-layer:latest
-        imagePullPolicy: Never  # Use local image from minikube
+        imagePullPolicy: Never 
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
-          value: "kafka-cluster-kafka-bootstrap:9092"
+          value: kafka-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
         - name: MINIO_ENDPOINT
           value: "http://minio.minio.svc.cluster.local:9000"
         - name: MINIO_ACCESS_KEY
@@ -26,8 +26,8 @@ spec:
           value: "minioadmin"
         resources:
           requests:
-            memory: "2Gi"
+            memory: "3Gi"
             cpu: "1"
           limits:
-            memory: "4Gi"
+            memory: "6Gi"
             cpu: "2"

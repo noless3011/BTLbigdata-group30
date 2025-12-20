@@ -159,34 +159,42 @@ def main(input_path, output_path):
     print("[COURSE BATCH] Computing enrollment statistics...")
     enrollment_stats = compute_course_enrollment_stats(df)
     enrollment_stats.write.mode("overwrite").parquet(f"{output_path}/course_enrollment_stats")
-    
+    enrollment_stats.write.format("org.apache.spark.sql.cassandra").options(table="course_enrollment_stats", keyspace="lms_analytics").mode("append").save()
+
     print("[COURSE BATCH] Computing material access patterns...")
     material_access = compute_course_material_access(df)
     material_access.write.mode("overwrite").parquet(f"{output_path}/course_material_access")
+    material_access.write.format("org.apache.spark.sql.cassandra").options(table="course_material_access", keyspace="lms_analytics").mode("append").save()
     
     print("[COURSE BATCH] Computing material popularity...")
     material_popularity = compute_material_popularity(df)
     material_popularity.write.mode("overwrite").parquet(f"{output_path}/course_material_popularity")
+    material_popularity.write.format("org.apache.spark.sql.cassandra").options(table="course_material_popularity", keyspace="lms_analytics").mode("append").save()
     
     print("[COURSE BATCH] Computing download analytics...")
     download_analytics = compute_download_analytics(df)
     download_analytics.write.mode("overwrite").parquet(f"{output_path}/course_download_analytics")
+    download_analytics.write.format("org.apache.spark.sql.cassandra").options(table="course_download_analytics", keyspace="lms_analytics").mode("append").save()
     
     print("[COURSE BATCH] Computing resource download stats...")
     resource_stats = compute_resource_download_stats(df)
     resource_stats.write.mode("overwrite").parquet(f"{output_path}/course_resource_download_stats")
+    resource_stats.write.format("org.apache.spark.sql.cassandra").options(table="course_resource_download_stats", keyspace="lms_analytics").mode("append").save()
     
     print("[COURSE BATCH] Computing activity summary per student...")
     activity_summary = compute_course_activity_summary(df)
     activity_summary.write.mode("overwrite").parquet(f"{output_path}/course_activity_summary")
+    activity_summary.write.format("org.apache.spark.sql.cassandra").options(table="course_activity_summary", keyspace="lms_analytics").mode("append").save()
     
     print("[COURSE BATCH] Computing daily course engagement...")
     daily_engagement = compute_daily_course_engagement(df)
     daily_engagement.write.mode("overwrite").parquet(f"{output_path}/course_daily_engagement")
+    daily_engagement.write.format("org.apache.spark.sql.cassandra").options(table="course_daily_engagement", keyspace="lms_analytics").mode("append").save()
     
     print("[COURSE BATCH] Computing overall course metrics...")
     overall_metrics = compute_course_overall_metrics(df)
     overall_metrics.write.mode("overwrite").parquet(f"{output_path}/course_overall_metrics")
+    overall_metrics.write.format("org.apache.spark.sql.cassandra").options(table="course_overall_metrics", keyspace="lms_analytics").mode("append").save()
     
     print("[COURSE BATCH] Course batch job completed successfully!")
     spark.stop()
