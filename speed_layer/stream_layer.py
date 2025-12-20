@@ -42,6 +42,7 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
     .config("spark.hadoop.fs.s3a.connection.ttl", "60000") \
     .config("spark.hadoop.fs.s3a.assumed.role.session.duration", "3600") \
+    .config("spark.sql.session.timeZone", "Asia/Ho_Chi_Minh") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
