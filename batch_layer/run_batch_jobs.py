@@ -58,6 +58,9 @@ def run_batch_job(job_name, input_path, output_path):
         elif job_name == "profile_notification":
             from profile_notification_batch_job import main as profile_notif_main
             profile_notif_main(input_path, output_path)
+        elif job_name == "student_course_analytics":
+            from student_course_analytics_batch_job import main as student_course_main
+            student_course_main(input_path, output_path)
         else:
             print(f"ERROR: Unknown job name '{job_name}'")
             return False
@@ -76,7 +79,7 @@ def run_batch_job(job_name, input_path, output_path):
 
 def run_all_jobs(input_path, output_path):
     """Run all batch jobs sequentially"""
-    jobs = ["auth", "assessment", "video", "course", "profile_notification"]
+    jobs = ["auth", "assessment", "video", "course", "profile_notification", "student_course_analytics"]
     results = {}
     
     print(f"\n{'#'*80}")

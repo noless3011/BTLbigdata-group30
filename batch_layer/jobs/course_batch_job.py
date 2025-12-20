@@ -30,7 +30,7 @@ def get_course_schema():
 
 def compute_course_enrollment_stats(df):
     """Compute enrollment statistics per course"""
-    enrollments = df.filter(col("event_type") == "ENROLL_COURSE")
+    enrollments = df.filter(col("event_type") == "COURSE_ENROLLED")
     
     return enrollments.withColumn("date", date_format(col("timestamp_parsed"), "yyyy-MM-dd")) \
         .groupBy("date", "course_id") \
@@ -66,7 +66,7 @@ def compute_material_popularity(df):
 
 def compute_download_analytics(df):
     """Analyze download patterns"""
-    downloads = df.filter(col("event_type") == "DOWNLOAD_RESOURCE")
+    downloads = df.filter(col("event_type") == "DOWNLOAD_MATERIAL")
     
     return downloads.groupBy("user_id", "course_id") \
         .agg(
@@ -77,7 +77,7 @@ def compute_download_analytics(df):
 
 def compute_resource_download_stats(df):
     """Compute download statistics per resource"""
-    downloads = df.filter(col("event_type") == "DOWNLOAD_RESOURCE")
+    downloads = df.filter(col("event_type") == "DOWNLOAD_MATERIAL")
     
     return downloads.groupBy("course_id", "resource_id") \
         .agg(
@@ -89,7 +89,7 @@ def compute_resource_download_stats(df):
 def compute_course_activity_summary(df):
     """Comprehensive course activity summary per student"""
     # Enrollments
-    enrollments = df.filter(col("event_type") == "ENROLL_COURSE") \
+    enrollments = df.filter(col("event_type") == "COURSE_ENROLLED") \
         .groupBy("user_id") \
         .agg(countDistinct("course_id").alias("courses_enrolled"))
     
@@ -102,7 +102,7 @@ def compute_course_activity_summary(df):
         )
     
     # Downloads
-    downloads = df.filter(col("event_type") == "DOWNLOAD_RESOURCE") \
+    downloads = df.filter(col("event_type") == "DOWNLOAD_MATERIAL") \
         .groupBy("user_id") \
         .agg(count("resource_id").alias("total_downloads"))
     
@@ -127,9 +127,9 @@ def compute_course_overall_metrics(df):
     """Overall metrics per course (enrollments, material access, downloads)"""
     course_metrics = df.groupBy("course_id") \
         .agg(
-            count(when(col("event_type") == "ENROLL_COURSE", 1)).alias("total_enrollments"),
+            count(when(col("event_type") == "COURSE_ENROLLED", 1)).alias("total_enrollments"),
             count(when(col("event_type") == "ACCESS_COURSE_MATERIAL", 1)).alias("total_material_accesses"),
-            count(when(col("event_type") == "DOWNLOAD_RESOURCE", 1)).alias("total_downloads"),
+            count(when(col("event_type") == "DOWNLOAD_MATERIAL", 1)).alias("total_downloads"),
             countDistinct("user_id").alias("unique_students_interacting")
         ) \
         .orderBy(col("total_enrollments").desc())

@@ -15,8 +15,8 @@ echo -e "${CYAN}================================${NC}"
 echo ""
 
 # Step 1: Start Minikube
-echo -e "${YELLOW}[1/10] Starting Minikube cluster...${NC}"
-minikube start --cpus=4 --memory=8192 --driver=docker
+echo -e "${YELLOW}[1/10] Starting Minikube cluster (with upgraded resources)...${NC}"
+minikube start --cpus=6 --memory=12288 --driver=docker
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Failed to start Minikube${NC}"
     exit 1
@@ -70,26 +70,20 @@ echo ""
 
 # Step 8: Setup MinIO bucket
 echo -e "${YELLOW}[8/10] Configuring MinIO bucket...${NC}"
-echo -e "${CYAN}Starting port-forward for MinIO setup...${NC}"
-
-# Start port-forward in background
-kubectl port-forward service/minio 9000:9000 -n minio > /dev/null 2>&1 &
-PF_PID=$!
-sleep 5
+export MINIKUBE_IP=$(minikube ip)
+export MINIO_NODE_URL=http://$MINIKUBE_IP:30900
 
 # Configure mc and create bucket
-# Check if mc is installed, if not, try using a container or skip
 if command -v mc &> /dev/null; then
-    mc alias set minikube http://localhost:9000 minioadmin minioadmin
-    mc mb minikube/bucket-0
+    mc alias set minikube $MINIO_NODE_URL minioadmin minioadmin
+    mc mb minikube/bucket-0 --ignore-existing
+    echo -e "${YELLOW}Cleaning up old checkpoints...${NC}"
+    mc rm --recursive --force minikube/bucket-0/checkpoints/ingest/ 2>/dev/null || true
 else
     echo -e "${YELLOW}⚠️ 'mc' client not found locally. Trying to use docker run...${NC}"
-    docker run --network host --entrypoint /bin/sh minio/mc -c "mc alias set minikube http://localhost:9000 minioadmin minioadmin; mc mb minikube/bucket-0"
+    docker run --network host --entrypoint /bin/sh minio/mc -c "mc alias set minikube $MINIO_NODE_URL minioadmin minioadmin; mc mb minikube/bucket-0; mc rm --recursive --force minikube/bucket-0/checkpoints/ingest/"
 fi
-
-# Kill port-forward
-kill $PF_PID
-echo -e "${GREEN}✅ MinIO bucket created${NC}"
+echo -e "${GREEN}✅ MinIO bucket prepared (and checkpoints cleared)${NC}"
 echo ""
 
 # Step 9: Build Docker Images
@@ -143,22 +137,69 @@ echo ""
 echo -e "${YELLOW}[COMPLETE] System Deployed${NC}"
 echo ""
 echo -e "${CYAN}================================${NC}"
-echo -e "${CYAN}NEXT STEPS:${NC}"
+echo -e "${CYAN}STARTING DATA PIPELINE...${NC}"
 echo -e "${CYAN}================================${NC}"
 echo ""
-echo -e "${YELLOW}1. Open 2 NEW terminals and run:${NC}"
-echo "   Terminal 1: kubectl port-forward service/minio 9000:9000 -n minio"
-echo "   Terminal 2: kubectl port-forward service/minio 9001:9001 -n minio"
+
+# Export Connectivity for local scripts
+export MINIKUBE_IP=$(minikube ip)
+export KAFKA_BOOTSTRAP_SERVERS=$MINIKUBE_IP:30092
+export MINIO_ENDPOINT=http://$MINIKUBE_IP:30900
+
+echo -e "${GREEN}✅ Kafka Bootstrap Server: $KAFKA_BOOTSTRAP_SERVERS${NC}"
+echo -e "${GREEN}✅ MinIO API Endpoint: $MINIO_ENDPOINT${NC}"
 echo ""
-echo -e "${YELLOW}2. Configure Kafka Connection (Linux/Ubuntu):${NC}"
-echo "   export KAFKA_BOOTSTRAP_SERVERS=\$(minikube ip):30092"
+
+# Start Batch Ingestion
+echo -e "${YELLOW}Starting Batch Ingestion Layer...${NC}"
+echo "   Reading from Kafka ($KAFKA_BOOTSTRAP_SERVERS) → Writing to MinIO ($MINIO_ENDPOINT)"
+# Explicitly pass env vars for safety
+KAFKA_BOOTSTRAP_SERVERS=$KAFKA_BOOTSTRAP_SERVERS MINIO_ENDPOINT=$MINIO_ENDPOINT python3 ingestion_layer/minio_ingest_k8s.py > /tmp/ingestion.log 2>&1 &
+INGESTION_PID=$!
+echo $INGESTION_PID > /tmp/ingestion.pid
+sleep 5
+echo -e "${GREEN}✅ Batch Ingestion started (PID: $INGESTION_PID)${NC}"
+echo "   Logs: /tmp/ingestion.log"
 echo ""
-echo -e "${YELLOW}2. Wait 30 seconds for port-forwards to be ready${NC}"
+
+# Start Producer
+echo -e "${YELLOW}Starting Event Producer...${NC}"
+echo "   Generating events → Kafka topics"
+python3 ingestion_layer/producer.py > /tmp/producer.log 2>&1 &
+PRODUCER_PID=$!
+echo $PRODUCER_PID > /tmp/producer.pid
+sleep 3
+echo -e "${GREEN}✅ Producer started (PID: $PRODUCER_PID)${NC}"
+echo "   Logs: /tmp/producer.log"
 echo ""
-echo -e "${YELLOW}3. Run verification:${NC}"
-echo "   ./deployment/verify_minikube.sh"
-echo ""
+
 echo -e "${GREEN}================================${NC}"
 echo -e "${GREEN}DEPLOYMENT COMPLETE! ✅${NC}"
 echo -e "${GREEN}================================${NC}"
 echo ""
+echo -e "${CYAN}Running Processes:${NC}"
+echo "  - MinIO Port-Forward: PID $MINIO_PF_PID"
+echo "  - Batch Ingestion: PID $INGESTION_PID"
+echo "  - Event Producer: PID $PRODUCER_PID"
+echo ""
+echo -e "${CYAN}To Stop Background Processes:${NC}"
+echo "  kill \$(cat /tmp/minio-pf.pid) \$(cat /tmp/ingestion.pid) \$(cat /tmp/producer.pid)"
+echo ""
+echo -e "${YELLOW}NEXT STEPS:${NC}"
+echo ""
+echo "1. Wait 2-3 minutes for data to flow through the pipeline"
+echo ""
+echo "2. Run verification to check system health:"
+echo "   ./deployment/verify_minikube.sh"
+echo ""
+echo "3. Access services:"
+echo "   - MinIO Console: http://localhost:9000 (minioadmin/minioadmin)"
+echo "   - Serving API: kubectl port-forward service/serving-layer 8000:8000"
+echo "   - Dashboard: kubectl port-forward service/serving-layer 8501:8501"
+echo ""
+echo "4. Monitor logs:"
+echo "   - Ingestion: tail -f /tmp/ingestion.log"
+echo "   - Producer: tail -f /tmp/producer.log"
+echo "   - Speed Layer: kubectl logs -f -l app=speed-layer"
+echo ""
+echo -e "${GREEN}================================${NC}"

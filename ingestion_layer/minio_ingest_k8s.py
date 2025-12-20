@@ -31,24 +31,27 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.assumed.role.session.duration", "1800") \
     .getOrCreate()
 
+# Start Metadata Printing
 print("="*60)
 print("KAFKA TO MINIO INGESTION LAYER")
+print(f"Time: {os.popen('date').read().strip()}")
 print("="*60)
 print(f"Kafka Bootstrap Servers: {KAFKA_BOOTSTRAP_SERVERS}")
 print(f"MinIO Endpoint: {MINIO_ENDPOINT}")
-print("="*60)
+print("="*60, flush=True)
 
 # Read from Kafka - Subscribe to all 6 event topics
+print("Initializing Kafka connection...", flush=True)
 df = spark.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS) \
     .option("subscribe", "auth_topic,assessment_topic,video_topic,course_topic,profile_topic,notification_topic") \
     .option("startingOffsets", "earliest") \
     .load()
+print("Kafka connection established.", flush=True)
 
-# Write Raw Data to MinIO (S3-compatible) using Checkpointing
-# Store raw JSON events as-is, no transformation at ingestion layer
-# Partitioned by topic for efficient querying in batch layer
+# Write Raw Data to MinIO (S3-compatible)
+print("Configuring streaming query...", flush=True)
 query = df.selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)", "topic", "timestamp") \
     .writeStream \
     .format("parquet") \
@@ -58,16 +61,35 @@ query = df.selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)", "topic", "
     .trigger(processingTime="1 minute") \
     .start()
 
+import time
+
 print("="*60)
-print("INGESTION LAYER STARTED")
+print("INGESTION LAYER STARTED SUCCESSFULLY")
 print("="*60)
-print("Topics: auth_topic, assessment_topic, video_topic, course_topic, profile_topic, notification_topic")
 print("Destination: s3a://bucket-0/master_dataset/")
 print("Checkpoint: s3a://bucket-0/checkpoints/ingest/")
-print("Partitioning: By topic")
 print("Trigger: Every 1 minute")
-print("="*60)
-print("Streaming query running... Press Ctrl+C to stop")
-print("="*60)
+print("Monitoring batch progress (printing every 10s)...")
+print("="*60, flush=True)
 
-query.awaitTermination()
+try:
+    while query.isActive:
+        if query.lastProgress:
+            rows = query.lastProgress.get('numInputRows', 0)
+            status = query.status.get('message', 'Processing')
+            print(f"[{time.strftime('%H:%M:%S')}] Status: {status} | Last Batch Rows: {rows}", flush=True)
+            if rows > 0:
+                print(f"  > Sources: {query.lastProgress.get('sources', [])}")
+        else:
+            print(f"[{time.strftime('%H:%M:%S')}] Query active, waiting for first batch...", flush=True)
+        
+        time.sleep(10)
+    
+    query.awaitTermination()
+except KeyboardInterrupt:
+    print("Stopping Ingestion Layer...")
+    query.stop()
+except Exception as e:
+    print(f"Error: {e}")
+    query.stop()
+
