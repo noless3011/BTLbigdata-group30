@@ -494,8 +494,15 @@ def simulate():
             
             topic, data = event_generators()
             
-            # Send to Kafka
-            producer.send(topic, data)
+            # Callbacks for delivery reports
+            def on_send_success(record_metadata):
+                pass # Successfully delivered
+            
+            def on_send_error(excp):
+                print(f"!!! Error sending to Kafka: {excp}", flush=True)
+
+            # Send to Kafka with callbacks
+            producer.send(topic, data).add_callback(on_send_success).add_errback(on_send_error)
             
             # Update counters
             event_category = data['event_category']

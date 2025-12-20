@@ -19,16 +19,13 @@ spark = SparkSession.builder \
     .config("spark.hadoop.fs.s3a.path.style.access", "true") \
     .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
     .config("spark.hadoop.fs.s3a.connection.ssl.enabled", "false") \
-    .config("spark.hadoop.fs.s3a.path.style.access", "true") \
+    .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
+    .config("spark.hadoop.fs.s3a.fast.upload", "true") \
+    .config("spark.hadoop.fs.s3a.fast.upload.buffer", "disk") \
+    .config("spark.hadoop.fs.s3a.multipart.size", "67108864") \
     .config("spark.hadoop.fs.s3a.connection.establish.timeout", "5000") \
     .config("spark.hadoop.fs.s3a.connection.timeout", "10000") \
-    .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
-    .config("spark.hadoop.fs.s3a.endpoint.region", "us-east-1") \
-    .config("spark.hadoop.fs.s3a.committer.name", "directory") \
-    .config("spark.hadoop.fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider") \
-    .config("spark.hadoop.fs.s3a.multipart.purge.age", "86400") \
-    .config("spark.hadoop.fs.s3a.connection.ttl", "300") \
-    .config("spark.hadoop.fs.s3a.assumed.role.session.duration", "1800") \
+    .config("spark.sql.streaming.checkpointFileManagerClass", "org.apache.spark.sql.execution.streaming.filesystem.NewCheckpointFileManager") \
     .getOrCreate()
 
 # Start Metadata Printing
@@ -47,6 +44,7 @@ df = spark.readStream \
     .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS) \
     .option("subscribe", "auth_topic,assessment_topic,video_topic,course_topic,profile_topic,notification_topic") \
     .option("startingOffsets", "earliest") \
+    .option("failOnDataLoss", "false") \
     .load()
 print("Kafka connection established.", flush=True)
 
@@ -58,7 +56,7 @@ query = df.selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)", "topic", "
     .option("path", "s3a://bucket-0/master_dataset/") \
     .option("checkpointLocation", "s3a://bucket-0/checkpoints/ingest/") \
     .partitionBy("topic") \
-    .trigger(processingTime="1 minute") \
+    .trigger(processingTime="30 seconds") \
     .start()
 
 import time
