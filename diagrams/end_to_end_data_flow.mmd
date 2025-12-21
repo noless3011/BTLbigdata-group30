@@ -1,0 +1,45 @@
+graph TD
+    DataSources[DATA SOURCES<br>Producer Fake Data] -->|Kafka Topics| IngestionLayer
+    
+    subgraph IngestionLayer [INGESTION LAYER]
+        SparkIngest[Spark Structured Streaming<br>minio_ingest_k8s.py]
+    end
+    IngestionLayer -->|Write Parquet<br>Partition by topic| MasterDataset
+
+    subgraph Storage [MASTER DATASET MinIO - Parquet]
+        MasterDataset[s3a://bucket-0/master_dataset/topic=topic/]
+    end
+
+    MasterDataset -->|Batch Processing| BatchLayer
+    MasterDataset -->|Stream Processing<br>via Kafka| SpeedLayer
+
+    subgraph BatchLayer [BATCH LAYER]
+        SparkBatch[6 Spark Batch Jobs<br>Orchestrated by Oozie<br>Run daily at midnight]
+    end
+
+    subgraph SpeedLayer [SPEED LAYER]
+        SparkStreaming[5 Spark Streaming Jobs<br>Real-time sliding windows<br>Trigger every 30s]
+    end
+
+    BatchLayer -->|Output: 37 batch views| BatchViews
+    SpeedLayer -->|Output: 25 speed views| SpeedViews
+
+    subgraph Views [VIEWS MinIO]
+        BatchViews[BATCH VIEWS<br>s3a://bucket-0/batch_views/]
+        SpeedViews[SPEED VIEWS<br>s3a://bucket-0/speed_views/]
+    end
+
+    BatchViews --> ServingLayer
+    SpeedViews --> ServingLayer
+
+    subgraph ServingLayer [SERVING LAYER]
+        FastAPI[FastAPI Query Service<br>View Merger Batch + Speed]
+        Streamlit[Streamlit Dashboard]
+        FastAPI --> Streamlit
+    end
+
+    ServingLayer --> EndUsers
+    
+    subgraph EndUsers [END USERS]
+        Users[Students<br>Teachers<br>Administrators]
+    end

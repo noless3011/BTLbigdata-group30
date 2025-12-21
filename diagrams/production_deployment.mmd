@@ -1,0 +1,26 @@
+graph TB
+    subgraph K8S_CLUSTER [K8S CLUSTER]
+        direction TB
+        
+        subgraph Kafka_Namespace [Kafka Namespace]
+            KafkaPods[Kafka - 3 pods]
+        end
+        
+        subgraph MinIO_Namespace [MinIO Namespace]
+            MinIOPod[MinIO - 1 pod]
+        end
+        
+        subgraph Layers
+            SpeedPod[Speed Layer - 1 pod]
+            ServingPod[Serving Layer - 1 pod]
+            BatchJob[Batch Layer - Job]
+        end
+        
+        subgraph Persistent_Storage [Persistent Storage PVs/PVCs]
+            KafkaPV[Kafka data - 3x 20Gi]
+            MinIOPV[MinIO data - 50Gi]
+        end
+        
+        KafkaPods --> KafkaPV
+        MinIOPod --> MinIOPV
+    end

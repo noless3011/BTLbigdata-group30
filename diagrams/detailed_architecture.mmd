@@ -1,0 +1,60 @@
+graph TD
+    subgraph KafkaCluster [KAFKA CLUSTER 3 brokers]
+        Kafka[Topics: auth, assessment, video, course, profile, notification]
+    end
+
+    Producer[PRODUCER Python<br>Fake data generation<br>50 students, 10 teachers] --> Kafka
+
+    subgraph Ingestion [BATCH INGESTION Spark Streaming]
+        IngestJob[readStream from Kafka 6 topics<br>writeStream to MinIO Master<br>Checkpoint for fault tolerance]
+    end
+    Kafka --> IngestJob
+
+    subgraph MinIO [MASTER DATASET MinIO]
+        MasterData[s3a://bucket-0/master_dataset/<br>Immutable raw events Parquet<br>Partitioned by topic]
+    end
+    IngestJob --> MasterData
+
+    subgraph BatchLayer [BATCH LAYER]
+        AuthBatch[Auth Batch Job]
+        AssessBatch[Assessment Batch]
+        VideoBatch[Video Batch Job]
+        CourseBatch[Course Batch Job]
+        ProfileBatch[Profile/Notif Job]
+        StudentCourseBatch[Student-Course Analytics]
+        
+        Oozie[Orchestration: Oozie<br>Schedule: Daily 00:00]
+    end
+    MasterData --> BatchLayer
+
+    subgraph SpeedLayer [SPEED LAYER]
+        AuthStream[Auth Stream Job]
+        AssessStream[Assessment Stream]
+        VideoStream[Video Stream Job]
+        CourseStream[Course Stream Job]
+        ProfileStream[Profile/Notif Stream]
+        
+        StreamRunner[Runner: run_stream_jobs.py]
+    end
+    Kafka --> SpeedLayer
+
+    subgraph OutputViews [OUTPUT VIEWS]
+        BatchViews[BATCH VIEWS MinIO<br>37 precomputed views Parquet]
+        SpeedViews[SPEED VIEWS MinIO<br>25 real-time views Parquet]
+    end
+    BatchLayer --> BatchViews
+    SpeedLayer --> SpeedViews
+
+    subgraph ServingLayer [SERVING LAYER]
+        FastAPI[FastAPI Query Service<br>15+ REST endpoints<br>View Merger logic]
+        Dashboard[Streamlit Dashboard<br>3 pages: Overview, Courses, Students<br>Real-time charts]
+        
+        FastAPI --> Dashboard
+    end
+    BatchViews --> FastAPI
+    SpeedViews --> FastAPI
+
+    subgraph EndUsers [END USERS]
+        Users[Students<br>Teachers<br>Administrators]
+    end
+    Dashboard --> Users
