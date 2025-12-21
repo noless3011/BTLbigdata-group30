@@ -1,526 +1,226 @@
-# BTLbigdata-group30 - University Learning Analytics System
+# Lambda Architecture Documentation
 
-Lambda Architecture implementation for student learning analytics with Kafka, Spark, and MinIO.
+## Overview
+This directory contains comprehensive documentation for the educational platform analytics system built using Lambda Architecture on Kubernetes.
 
----
+## Architecture Summary
 
-## 📁 Project Structure (Reorganized)
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        LAMBDA ARCHITECTURE                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  Ingestion Layer                                                 │
+│  ┌──────────┐                                                    │
+│  │ Producer │──────▶ Kafka Topics (6)                           │
+│  └──────────┘                                                    │
+│                          │                                        │
+│                          ├─────────────┬─────────────┐           │
+│                          ▼             ▼             ▼           │
+│                    Speed Layer    Batch Layer   (Archive)        │
+│                    ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│                    │  Spark   │  │  Spark   │  │  MinIO   │    │
+│                    │Streaming │  │  Batch   │  │ Storage  │    │
+│                    └────┬─────┘  └────┬─────┘  └──────────┘    │
+│                         │             │                          │
+│                         ▼             ▼                          │
+│                    ┌─────────────────────────┐                  │
+│                    │      Cassandra DB        │                  │
+│                    │  ┌──────────────────┐   │                  │
+│                    │  │ Realtime Views   │   │                  │
+│                    │  │ Batch Views      │   │                  │
+│                    │  └──────────────────┘   │                  │
+│                    └──────────┬──────────────┘                  │
+│                               │                                  │
+│                               ▼                                  │
+│                    ┌─────────────────────────┐                  │
+│                    │   Serving Layer         │                  │
+│                    │  ┌────────┬──────────┐  │                  │
+│                    │  │FastAPI │Streamlit │  │                  │
+│                    │  └────────┴──────────┘  │                  │
+│                    └─────────────────────────┘                  │
+│                               │                                  │
+│                               ▼                                  │
+│                         End Users                                │
+└─────────────────────────────────────────────────────────────────┘
+```
 
+## Documentation Files
+
+### 📚 Core Layers
+- **[ingestion-layer.md](ingestion-layer.md)** - Real-time data generation and Kafka producer
+- **[batch-layer.md](batch-layer.md)** - Historical data processing with Spark
+- **[speed-layer.md](speed-layer.md)** - Real-time stream processing
+- **[serving-layer.md](serving-layer.md)** - API and dashboard for data access
+
+### 🏗️ Infrastructure
+- **[infrastructure.md](infrastructure.md)** - Kafka, MinIO, Cassandra, Kubernetes setup
+- **[quick-start.md](quick-start.md)** - Step-by-step deployment guide
+
+## Quick Reference
+
+### Key Technologies
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Orchestration | Kubernetes (Minikube) | Container orchestration |
+| Messaging | Apache Kafka (Strimzi) | Event streaming |
+| Storage | MinIO (S3) | Object storage |
+| Database | Apache Cassandra | Time-series + analytics |
+| Batch Processing | Apache Spark | Historical aggregations |
+| Stream Processing | Spark Structured Streaming | Real-time processing |
+| API | FastAPI | REST endpoints |
+| Dashboard | Streamlit | Interactive UI |
+
+### Service Ports
+| Service | Internal | NodePort | Access |
+|---------|----------|----------|--------|
+| Kafka Bootstrap | 9092 | 30092 | Message broker |
+| MinIO API | 9000 | 30900 | S3 storage |
+| MinIO Console | 9001 | 30901 | Web UI |
+| Cassandra CQL | 9042 | - | Database |
+| Serving API | 8000 | 30002 | REST API |
+| Serving UI | 8501 | 30001 | Dashboard |
+
+### Kafka Topics
+1. `auth_topic` - Authentication events
+2. `assessment_topic` - Quiz/test submissions
+3. `video_topic` - Video playback tracking
+4. `course_topic` - Course enrollments
+5. `profile_topic` - User profile changes
+6. `notification_topic` - System notifications
+
+## Getting Started
+
+### 1️⃣ First Time Setup
+```bash
+# Start cluster
+minikube start --memory=8192 --cpus=4
+
+# Deploy infrastructure (order matters!)
+kubectl apply -f kafka/deployment.yaml
+kubectl apply -f kafka/topics.yaml
+kubectl apply -f minio/deployment.yaml
+kubectl apply -f cassandra/deployment.yaml
+```
+
+### 2️⃣ Deploy Application
+```bash
+# Build images in Minikube
+eval $(minikube docker-env)
+docker build -t producer:latest -f ingestion_layer/Dockerfile .
+docker build -t speed-layer:latest -f speed_layer/Dockerfile .
+docker build -t serving-layer:latest -f serving_layer/Dockerfile .
+
+# Deploy layers
+kubectl apply -f ingestion_layer/deployment.yaml
+kubectl apply -f speed_layer/deployment.yaml
+kubectl apply -f serving_layer/deployment.yaml
+kubectl apply -f spark/ingestion-job.yaml
+```
+
+### 3️⃣ Access Services
+```bash
+# Get Minikube IP
+MINIKUBE_IP=$(minikube ip)
+
+# Open dashboard
+open http://$MINIKUBE_IP:30001
+
+# View API docs
+open http://$MINIKUBE_IP:30002/docs
+```
+
+See **[quick-start.md](quick-start.md)** for detailed instructions.
+
+## Data Flow
+
+### Real-Time Path (Speed Layer)
+1. Producer generates events → Kafka topics
+2. Speed Layer consumes streams → processes in windows
+3. Results written to Cassandra realtime views
+4. Serving Layer queries latest data
+
+### Batch Path (Batch Layer)
+1. Events archived to MinIO (Parquet files)
+2. Spark batch jobs read historical data
+3. Aggregations computed and stored in Cassandra batch views
+4. Serving Layer merges batch + realtime views
+
+## Common Tasks
+
+### View Logs
+```bash
+kubectl logs -f deployment/producer          # Producer activity
+kubectl logs -f deployment/speed-layer       # Stream processing
+kubectl logs -f deployment/serving-layer     # API/dashboard
+```
+
+### Check Data
+```bash
+# Kafka messages
+kubectl exec -it kafka-cluster-kafka-0 -n kafka -- \
+  bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 \
+  --topic auth_topic --max-messages 5
+
+# Cassandra tables
+kubectl exec -it cassandra-0 -- cqlsh -e \
+  "USE education_platform; SELECT * FROM realtime_user_activity LIMIT 5;"
+```
+
+### Debug Issues
+```bash
+kubectl get pods --all-namespaces              # Check pod status
+kubectl describe pod <pod-name>                 # Pod details
+kubectl logs <pod-name> --previous              # Previous crash logs
+```
+
+## Architecture Benefits
+
+✅ **Fault Tolerance** - Multiple data paths ensure availability  
+✅ **Scalability** - Independent scaling of batch and speed layers  
+✅ **Low Latency** - Speed layer provides real-time insights  
+✅ **Accuracy** - Batch layer provides comprehensive historical views  
+✅ **Flexibility** - Easy to add new analytics or data sources  
+
+## Performance Characteristics
+
+| Metric | Speed Layer | Batch Layer |
+|--------|-------------|-------------|
+| Latency | < 5 seconds | Hours |
+| Completeness | Last 15-30 min | All history |
+| Accuracy | Approximate | Exact |
+| Update Frequency | Continuous | Scheduled |
+
+## Further Reading
+
+- **[Infrastructure Details](infrastructure.md)** - Network, storage, monitoring
+- **[Layer Documentation](ingestion-layer.md)** - Deep dives into each component
+- **[Quick Start](quick-start.md)** - Deployment walkthrough
+- [Apache Kafka](https://kafka.apache.org/documentation/)
+- [Apache Spark](https://spark.apache.org/docs/latest/)
+- [Apache Cassandra](https://cassandra.apache.org/doc/latest/)
+
+## Project Structure
 ```
 BTLbigdata-group30/
-├── ingestion_layer/                # Kafka → Storage Ingestion
-│   ├── producer.py                # Event generator (6 categories)
-│   ├── ingest_layer.py           # Kafka → HDFS ingestion (local)
-│   ├── minio_ingest.py           # Kafka → MinIO ingestion
-│   ├── minio_ingest_k8s.py       # Kafka → MinIO (Kubernetes)
-│   ├── Dockerfile.ingestion       # Docker image for ingestion
-│   └── README.md                  # Ingestion layer documentation
-│
-├── batch_layer/                    # Batch Processing Layer ✅
-│   ├── jobs/                      # PySpark batch jobs (5 jobs)
-│   │   ├── auth_batch_job.py     # Authentication analytics
-│   │   ├── assessment_batch_job.py    # Assessment analytics
-│   │   ├── video_batch_job.py    # Video engagement analytics
-│   │   ├── course_batch_job.py   # Course interaction analytics
-│   │   └── profile_notification_batch_job.py
-│   ├── oozie/                     # Oozie orchestration
-│   │   ├── workflow.xml          # Parallel job workflow
-│   │   ├── coordinator.xml       # Daily scheduler
-│   │   └── job.properties        # Oozie configuration
-│   ├── config.py                  # Centralized config
-│   ├── run_batch_jobs.py         # Manual runner
-│   ├── deploy_oozie.sh/.ps1      # Deployment scripts
-│   ├── README.md                  # Complete documentation
-│   ├── QUICKSTART.md              # Quick start guide
-│   └── IMPLEMENTATION_SUMMARY.md  # Implementation summary
-│
-├── speed_layer/                    # Real-Time Stream Processing ⏳
-│   ├── stream_layer.py           # Real-time processor (TBD)
-│   └── README.md                  # Speed layer documentation
-│
-├── serving_layer/                  # Unified Query Interface ✅
-│   ├── serving_layer.py          # MinIO-based API
-│   ├── serving_layer_cassandra.py # Cassandra-based API (recommended)
-│   ├── cassandra_sync.py         # MinIO → Cassandra sync service
-│   ├── cassandra_schema.cql      # Cassandra schema
-│   ├── init_cassandra_schema.py  # Schema initialization
-│   ├── dashboard.py              # Streamlit dashboard
-│   ├── CASSANDRA_INTEGRATION.md  # Cassandra documentation
-│   └── README.md                  # Serving layer documentation
-│
-├── kafka/                          # Kafka Kubernetes configs
-│   ├── deployment.yaml            # Kafka cluster (3 nodes)
-│   ├── topics.yaml                # Topic definitions (6 topics)
-│   ├── storage-class.yaml         # Storage configuration
-│   ├── persistent-volumn.yaml     # Multi-node PVs
-│   └── persistent-volumn-minikube.yaml
-│
-├── minio/                          # MinIO deployment
-│   └── deployment.yaml            # S3-compatible storage
-
-├── cassandra/                      # Cassandra deployment
-│   └── deployment.yaml            # Serving layer database
-│
-├── spark/                          # Spark jobs
-│   └── ingestion-job.yaml         # Ingestion K8s job
-│
-├── deployment/                     # Deployment scripts & guides
-│   ├── deploy_minikube.ps1       # Auto-deploy to Minikube
-│   ├── cleanup_minikube.ps1      # Cleanup Minikube
-│   ├── MINIKUBE_TESTING_GUIDE.md # Complete testing guide
-│   ├── MINIKUBE_QUICK_REFERENCE.md
-│   ├── TESTING_COMPARISON.md     # Local vs Minikube
-│   └── TESTING_WORKFLOW.md       # Testing workflows
-│
-├── config/                         # Configuration files
-│   ├── docker-compose.yml         # Local development setup
-│   ├── hadoop.env                 # Hadoop configuration
-│   └── requirements.txt           # Python dependencies
-│
-├── docs/                           # Documentation
-│   ├── event-schema-specification.md  # Event schemas
-│   ├── architecture-design.md     # System architecture
-│   ├── problem-definition.md      # Project requirements
-│   └── deployment-guide.md        # Setup instructions
-│
-├── batch_layer.py                  # DEPRECATED (moved to batch_layer/)
-├── generate_fake_data.ipynb       # Data generation notebook
-└── README.md                       # This file
+├── docs/                    # 📖 This documentation
+├── ingestion_layer/         # Producer code & deployment
+├── batch_layer/             # Spark batch jobs
+├── speed_layer/             # Spark streaming jobs
+├── serving_layer/           # API + dashboard
+├── kafka/                   # Kafka cluster & topics
+├── minio/                   # Object storage
+├── cassandra/               # Database deployment
+└── spark/                   # Spark operator & jobs
 ```
 
----
-
-## 🏗️ Lambda Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      DATA SOURCES                                │
-│            (Student Learning Events - 6 Categories)              │
-└───────────────────────────┬─────────────────────────────────────┘
-                            ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                   INGESTION LAYER (Kafka)                        │
-│  Producer → Kafka Topics → MinIO (Raw Events)                    │
-└────────┬────────────────────────────────────┬───────────────────┘
-         ↓                                     ↓
-┌────────────────────────┐        ┌───────────────────────────────┐
-│   BATCH LAYER ✅       │        │   SPEED LAYER ⏳              │
-│   (Historical Data)    │        │   (Real-Time Data)            │
-│                        │        │                               │
-│ • Oozie Scheduler      │        │ • Spark Streaming             │
-│ • 5 PySpark Jobs       │        │ • Windowed Aggregations       │
-│ • 37 Batch Views       │        │ • Incremental Updates         │
-│ • Daily Processing     │        │ • Low Latency (seconds)       │
-└────────┬───────────────┘        └───────────┬───────────────────┘
-         │                                     │
-         └──────────────┬──────────────────────┘
-                        ↓
-                    MinIO (Parquet)
-                        ↓
-                 Cassandra Sync (5 min)
-                        ↓
-         ┌──────────────────────────────────┐
-         │     SERVING LAYER ✅             │
-         │  (Unified Query Interface)       │
-         │                                  │
-         │  Cassandra Database              │
-         │  FastAPI + Streamlit Dashboard   │
-         │  99% faster than direct Parquet  │
-         └──────────────────────────────────┘
-```
-
-**Legend**:
-- ✅ **Complete** - Fully implemented and tested
-- ⏳ **Planned** - Next implementation phase
-
----
-
-## 🎯 Implementation Status
-
-| **Ingestion** | ✅ Complete | 4 scripts, 6 Kafka topics | - |
-| **Batch Layer** | ✅ Complete | 5 PySpark jobs, Oozie orchestration | 37 views |
-| **Speed Layer** | ✅ Complete | Spark Streaming (3 key views), K8s Deployment | 3 views |
-| **Serving Layer** | ✅ Complete | Cassandra DB, FastAPI, Streamlit Dashboard | 30+ tables |
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.8-3.11
-- Docker Desktop
-- Apache Spark 3.5.0
-- Kafka (via Docker Compose or Minikube)
-- MinIO (via Docker Compose or Minikube)
-- Cassandra 4.1 (via Docker Compose or Minikube)
-
-### Option 1: Local Development (Docker Compose)
-
-1. **Start infrastructure**:
-```powershell
-cd config
-docker-compose up -d
-```
-
-2. **Initialize Cassandra**:
-```powershell
-python serving_layer/init_cassandra_schema.py
-```
-
-3. **Generate events**:
-```powershell
-python ingestion_layer/producer.py
-```
-
-4. **Ingest to MinIO**:
-```powershell
-python ingestion_layer/minio_ingest.py
-```
-
-5. **Run batch processing**:
-```powershell
-python batch_layer/run_batch_jobs.py s3a://bucket-0/master_dataset s3a://bucket-0/batch_views
-```
-
-6. **Sync to Cassandra and start serving layer**:
-```powershell
-python serving_layer/cassandra_sync.py --once
-uvicorn serving_layer.serving_layer_cassandra:app --host 0.0.0.0 --port 8000
-streamlit run serving_layer/dashboard.py
-```
-
-### Option 2: Minikube (Kubernetes)
-
-1. **Deploy to Minikube**:
-```powershell
-cd deployment
-.\deploy_minikube.ps1
-```
-
-2. **Port forward services**:
-```powershell
-# Terminal 1: Kafka
-kubectl port-forward service/kafka-cluster-kafka-bootstrap 9092:9092 -n kafka
-
-# Terminal 2: MinIO
-kubectl port-forward service/minio 9000:9000 -n minio
-```
-
-3. **Run ingestion**:
-```powershell
-python ingestion_layer/producer.py
-python ingestion_layer/minio_ingest_k8s.py
-```
-
-4. **Deploy Oozie batch jobs**:
-```powershell
-cd batch_layer
-.\deploy_oozie.ps1
-oozie job -oozie http://localhost:11000/oozie -config oozie/job.properties -run
-```
-
-**📚 Detailed Guides**:
-- [Ingestion Layer README](ingestion_layer/README.md)
-- [Batch Layer README](batch_layer/README.md)
-- [Batch Layer Quick Start](batch_layer/QUICKSTART.md)
-- [Minikube Testing Guide](deployment/MINIKUBE_TESTING_GUIDE.md)
-
----
-
-## 📊 Event Schema
-
-The system captures **6 event categories** with **30+ event types**:
-
-1. **Authentication** (`auth_topic`) - Login, Logout, Signup
-2. **Assessment** (`assessment_topic`) - Assignments, Quizzes, Grading
-3. **Video** (`video_topic`) - Video watching behavior
-4. **Course** (`course_topic`) - Enrollments, Materials, Downloads
-5. **Profile** (`profile_topic`) - Profile updates, Avatar changes
-6. **Notification** (`notification_topic`) - Notification delivery & engagement
-
-**Complete specification**: [docs/event-schema-specification.md](docs/event-schema-specification.md)
-
----
-
-## 🔧 Configuration
-
-### MinIO Configuration
-- **Endpoint**: `http://minio:9000`
-- **Console**: `http://localhost:9001`
-- **Credentials**: `minioadmin / minioadmin`
-
-### Cassandra Configuration
-- **CQL Port**: `9042`
-- **Keyspace**: `university_analytics`
-- **Tables**: 30+ optimized tables
-
-### Kafka Configuration
-- **Bootstrap Server**: `localhost:9092`
-- **Topics**: 6 topics (auth, assessment, video, course, profile, notification)
-
-### Spark Configuration
-- **Executor Memory**: 4GB
-- **Executor Cores**: 2
-- **Executors**: 3
-
-Edit configurations in:
-- `config/docker-compose.yml` - Local development
-- `batch_layer/config.py` - Batch processing
-- `batch_layer/oozie/job.properties` - Oozie jobs
-- `serving_layer/cassandra_schema.cql` - Cassandra schema
-
----
-
-## 📦 Batch Views (37 Total)
-
-### Authentication (5 views)
-- Daily active users (DAU)
-- Hourly login patterns
-- User session metrics
-- Activity summary
-- Registration analytics
-
-### Assessment (7 views)
-- Student submissions
-- Engagement timeline
-- Quiz performance
-- Grading statistics
-- Teacher workload
-- Submission distribution
-- Overall performance
-
-### Video (7 views)
-- Total watch time
-- Student engagement
-- Video popularity
-- Daily engagement
-- Course metrics
-- Student-course summary
-- Drop-off indicators
-
-### Course (8 views)
-- Enrollment stats
-- Material access patterns
-- Material popularity
-- Download analytics
-- Resource download stats
-- Activity summary
-- Daily engagement
-- Overall metrics
-
-### Profile & Notification (10 views)
-- Profile update frequency
-- Field changes
-- Avatar changes
-- Profile activity
-- Notification delivery stats
-- Engagement metrics
-- Click-through rates
-- User preferences
-- Daily activity
-- User summary
-
-**Full documentation**: [batch_layer/README.md](batch_layer/README.md)
-
----
-
-## 🧪 Testing
-
-### Test Ingestion Layer
-```powershell
-# Start infrastructure
-cd config
-docker-compose up -d
-
-# Run producer and ingestion
-python ingestion_layer/producer.py
-python ingestion_layer/minio_ingest.py
-
-# Verify in MinIO Console: http://localhost:9001
-```
-
-### Test Batch Layer
-```powershell
-# Run all batch jobs
-python batch_layer/run_batch_jobs.py s3a://bucket-0/master_dataset s3a://bucket-0/batch_views
-
-# Run specific job
-python batch_layer/run_batch_jobs.py video s3a://bucket-0/master_dataset s3a://bucket-0/batch_views
-```
-
-### Test on Minikube
-```powershell
-cd deployment
-.\deploy_minikube.ps1
-
-# Follow prompts for testing
-```
-
-**Testing Guides**:
-- [MINIKUBE_TESTING_GUIDE.md](deployment/MINIKUBE_TESTING_GUIDE.md)
-- [TESTING_COMPARISON.md](deployment/TESTING_COMPARISON.md)
-
----
-
-## 📖 Documentation
-
-- **[Architecture Design](docs/architecture-design.md)** - System architecture overview
-- **[Event Schema](docs/event-schema-specification.md)** - Complete event definitions
-- **[Problem Definition](docs/problem-definition.md)** - Project requirements
-- **[Deployment Guide](docs/deployment-guide.md)** - Setup instructions
-
-**Layer Documentation**:
-- [Ingestion Layer](ingestion_layer/README.md)
-- [Batch Layer](batch_layer/README.md) + [Quick Start](batch_layer/QUICKSTART.md)
-- [Speed Layer](speed_layer/README.md)
-- [Serving Layer](serving_layer/README.md)
-
----
-
-## 🛠️ Development Workflow
-
-### Adding New Event Types
-
-1. Update schema: `docs/event-schema-specification.md`
-2. Update producer: `ingestion_layer/producer.py`
-3. Create/update batch job: `batch_layer/jobs/<category>_batch_job.py`
-4. Test ingestion → batch processing
-
-### Adding New Batch Views
-
-1. Create computation function in relevant batch job
-2. Write output to MinIO: `s3a://bucket-0/batch_views/<view_name>`
-3. Document in batch job docstring
-4. Update `batch_layer/config.py` batch_views list
-
-### Deploying Changes
-
-**Local**:
-```powershell
-# Restart affected services
-docker-compose restart kafka minio
-
-# Re-run jobs
-python batch_layer/run_batch_jobs.py ...
-```
-
-**Oozie**:
-```powershell
-cd batch_layer
-.\deploy_oozie.ps1
-oozie job -kill <old-coordinator-id>
-oozie job -run -config oozie/job.properties
-```
-
----
-
-## 🔍 Monitoring
-
-### MinIO Console
-- URL: http://localhost:9001
-- Credentials: `minioadmin / minioadmin`
-- Browse: `bucket-0/master_dataset/` and `bucket-0/batch_views/`
-
-### Cassandra
-- CQL Shell: `docker exec -it cassandra cqlsh`
-- Status: `docker exec cassandra nodetool status`
-- Port: 9042
-
-### Spark UI
-- URL: http://localhost:4040 (during job execution)
-- Monitor: Job progress, stages, tasks
-
-### Oozie UI
-- URL: http://localhost:11000/oozie
-- Monitor: Workflow status, coordinator jobs
-
-### Serving Layer
-- API: http://localhost:8000
-- Dashboard: http://localhost:8501
-- API Docs: http://localhost:8000/docs
-
----
-
-## 🚧 Roadmap
-
-### Phase 1: Ingestion & Batch ✅ (Complete)
-- [x] Kafka event ingestion
-- [x] MinIO storage
-- [x] Batch layer with 5 PySpark jobs
-- [x] 37 batch views
-- [x] Oozie orchestration
-
-### Phase 2: Speed Layer ⏳ (Next)
-- [ ] Real-time stream processing
-- [ ] Incremental view updates
-- [ ] Windowed aggregations
-- [ ] Late data handling
-
-### Phase 3: Serving Layer ✅ (Complete)
-- [x] Unified query interface
-- [x] Batch + speed view merger
-- [x] REST API (FastAPI)
-- [x] Cassandra database (99% faster)
-- [x] Dashboard (Streamlit)
-- [x] Kubernetes deployment
-
-### Phase 4: Production Readiness
-- [ ] Monitoring dashboards (Grafana)
-- [ ] Alerting system
-- [ ] Performance optimization
-- [ ] Scalability testing
-
----
-
-## 👥 Team - Group 30
-
-**Ingestion Layer Team**: Thịnh, Phú, Tiến  
-**Batch Ingestion Team**: Lâm, Lộc
-
----
-
-## 📄 License
-
-University Big Data Course Project - 2025
-
----
-
-## 🆘 Troubleshooting
-
-### Common Issues
-
-**Problem**: Cannot connect to Kafka  
-**Solution**: Ensure Kafka is running: `docker ps | grep kafka` or check Minikube deployment
-
-**Problem**: MinIO access denied  
-**Solution**: Check credentials in config files (`minioadmin/minioadmin`)
-
-**Problem**: Cassandra not starting  
-**Solution**: Wait 60-90 seconds, check logs: `docker logs cassandra`
-
-**Problem**: Empty data in Cassandra  
-**Solution**: Run sync: `python serving_layer/cassandra_sync.py --once`
-
-**Problem**: Batch jobs fail with OOM  
-**Solution**: Increase executor memory in `batch_layer/config.py`
-
-**Problem**: No data in MinIO  
-**Solution**: Ensure producer and ingestion are running, check Kafka topics have data
-
-**More help**: Check respective README files in each layer directory
-
----
-
-## 📞 Support
-
-- Check layer-specific README files
-- Review documentation in `docs/`
-- Cassandra guide: `serving_layer/CASSANDRA_INTEGRATION.md`
-- Inspect logs: `docker logs <container>` or `oozie job -log <job-id>`
-- Verify data: MinIO Console or `mc ls minio/bucket-0/`
-- Check Cassandra: `docker exec cassandra cqlsh -e "DESCRIBE university_analytics;"`
-
----
-
-**Project Status**: Complete ✅ | All Layers Operational | Cassandra Serving Layer 99% Faster
+## Support & Troubleshooting
+
+For deployment issues, see:
+- **[Quick Start Guide](quick-start.md)** - Troubleshooting section
+- **[Infrastructure Doc](infrastructure.md)** - Common issues & solutions
+
+For architecture questions:
+- Review individual layer documentation
+- Check Kafka/Cassandra/Spark official docs
+- Examine deployment YAML configurations
