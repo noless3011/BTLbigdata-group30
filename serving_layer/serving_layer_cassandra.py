@@ -106,8 +106,8 @@ def get_summary_metrics():
         try:
             # Get current active users from speed layer
             rows = sess.execute("""
-                SELECT active_users FROM active_users
-                ORDER BY window_start DESC LIMIT 1
+                SELECT SUM(views) as total_views FROM video_engagement
+                    LIMIT 1000
             """)
             row = rows.one()
             if row:
