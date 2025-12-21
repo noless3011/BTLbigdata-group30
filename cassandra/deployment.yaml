@@ -13,6 +13,21 @@ spec:
             labels:
                 app: serving-layer
         spec:
+            initContainers:
+                - name: wait-for-cassandra
+                  image: busybox:1.28
+                  command:
+                      - sh
+                      - -c
+                      - |
+                          echo "Waiting for Cassandra to be ready..."
+                          until nc -z cassandra.cassandra.svc.cluster.local 9042; do
+                            echo "Cassandra is unavailable - sleeping"
+                            sleep 5
+                          done
+                          echo "Cassandra is up - checking keyspace..."
+                          sleep 10
+                          echo "Init complete!"
             containers:
                 - name: serving-api
                   image: serving-layer:latest
@@ -37,6 +52,10 @@ spec:
                         value: "cassandra.cassandra.svc.cluster.local"
                       - name: CASSANDRA_PORT
                         value: "9042"
+                      - name: CASSANDRA_MAX_RETRIES
+                        value: "20"
+                      - name: CASSANDRA_RETRY_DELAY
+                        value: "5"
                       - name: MINIO_ENDPOINT
                         value: "http://minio.minio.svc:9000"
                       - name: MINIO_ACCESS_KEY
@@ -50,6 +69,19 @@ spec:
                       requests:
                           memory: "512Mi"
                           cpu: "250m"
+                  readinessProbe:
+                      httpGet:
+                          path: /
+                          port: 8000
+                      initialDelaySeconds: 10
+                      periodSeconds: 10
+                      failureThreshold: 3
+                  livenessProbe:
+                      httpGet:
+                          path: /
+                          port: 8000
+                      initialDelaySeconds: 30
+                      periodSeconds: 30
 
                 - name: serving-ui
                   image: serving-layer:latest

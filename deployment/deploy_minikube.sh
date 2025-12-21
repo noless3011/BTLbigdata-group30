@@ -30,6 +30,7 @@ echo ""
 echo -e "${YELLOW}[2/10] Creating namespaces...${NC}"
 kubectl create namespace kafka --dry-run=client -o yaml | kubectl apply -f -
 kubectl create namespace minio --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace cassandra --dry-run=client -o yaml | kubectl apply -f -
 echo -e "${GREEN}✅ Namespaces created${NC}"
 echo ""
 
@@ -88,8 +89,35 @@ fi
 echo -e "${GREEN}✅ MinIO bucket prepared (and checkpoints cleared)${NC}"
 echo ""
 
-# Step 9: Build Docker Images
-echo -e "${YELLOW}[9/12] Building Docker images inside Minikube...${NC}"
+# Step 9: Deploy Cassandra
+echo -e "${YELLOW}[9/14] Deploying Cassandra...${NC}"
+kubectl apply -f cassandra/deployment.yaml
+kubectl wait statefulset/cassandra --for=jsonpath='{.status.readyReplicas}'=1 --timeout=300s -n cassandra
+echo -e "${GREEN}✅ Cassandra ready${NC}"
+echo ""
+
+# Step 10: Initialize Cassandra Schema
+echo -e "${YELLOW}[10/14] Initializing Cassandra schema...${NC}"
+echo "   Waiting for Cassandra to be fully ready (30 seconds)..."
+sleep 30
+
+# Port forward Cassandra temporarily for schema initialization
+kubectl port-forward service/cassandra 9042:9042 -n cassandra &
+CASSANDRA_PF_PID=$!
+sleep 5
+
+# Initialize schema
+export CASSANDRA_HOST=localhost
+export CASSANDRA_PORT=9042
+./venv/bin/python3 serving_layer/init_cassandra_schema.py
+
+# Kill port-forward
+kill $CASSANDRA_PF_PID 2>/dev/null || true
+echo -e "${GREEN}✅ Cassandra schema initialized${NC}"
+echo ""
+
+# Step 11: Build Docker Images
+echo -e "${YELLOW}[11/14] Building Docker images inside Minikube...${NC}"
 eval $(minikube docker-env)
 
 echo "   Building Speed Layer..."
@@ -101,32 +129,35 @@ docker build -t batch-layer:latest -f batch_layer/Dockerfile .
 echo -e "${GREEN}✅ Images built${NC}"
 echo ""
 
-# Step 10: Deploy Speed Layer
-echo -e "${YELLOW}[10/12] Deploying Speed Layer...${NC}"
+# Step 12: Deploy Speed Layer
+echo -e "${YELLOW}[12/14] Deploying Speed Layer...${NC}"
 kubectl apply -f speed_layer/deployment.yaml -n default
 echo -e "${GREEN}✅ Speed Layer deployed${NC}"
 echo ""
 
-# Step 11: Deploy Serving Layer
-echo -e "${YELLOW}[11/12] Deploying Serving Layer...${NC}"
+# Step 13: Deploy Serving Layer
+echo -e "${YELLOW}[13/14] Deploying Serving Layer (with Cassandra backend)...${NC}"
 kubectl apply -f serving_layer/deployment.yaml -n default
 echo -e "${GREEN}✅ Serving Layer deployed${NC}"
 echo ""
 
-# Step 12: Deploy Batch Layer (Job)
-echo -e "${YELLOW}[12/12] Deploying Batch Layer Job...${NC}"
+# Step 14: Deploy Batch Layer (Job)
+echo -e "${YELLOW}[14/14] Deploying Batch Layer Job...${NC}"
 kubectl apply -f batch_layer/deployment.yaml -n default
 echo -e "${GREEN}✅ Batch Layer Job submitted${NC}"
 echo ""
 
-# Step 13: Display status
-echo -e "${YELLOW}[13/13] Checking deployment status...${NC}"
+# Step 15: Display status
+echo -e "${YELLOW}[15/15] Checking deployment status...${NC}"
 echo ""
 echo -e "${CYAN}Kafka Pods:${NC}"
 kubectl get pods -n kafka -l strimzi.io/cluster=kafka-cluster
 echo ""
 echo -e "${CYAN}MinIO Pods:${NC}"
 kubectl get pods -n minio
+echo ""
+echo -e "${CYAN}Cassandra Pods:${NC}"
+kubectl get pods -n cassandra
 echo ""
 echo -e "${CYAN}Application Pods (Default Namespace):${NC}"
 kubectl get pods -n default
@@ -163,7 +194,7 @@ sleep 5
 echo -e "${GREEN}✅ Batch Ingestion started (PID: $INGESTION_PID)${NC}"
 echo "   Logs: /tmp/ingestion.log"
 echo ""
- 
+
 # Start Producer
 echo -e "${YELLOW}Starting Event Producer...${NC}"
 echo "   Generating events → Kafka topics"
@@ -175,6 +206,21 @@ echo -e "${GREEN}✅ Producer started (PID: $PRODUCER_PID)${NC}"
 echo "   Logs: /tmp/producer.log"
 echo ""
 
+# Start Cassandra Sync (after a delay to let data accumulate)
+echo -e "${YELLOW}Scheduling Cassandra Sync (will run in 60 seconds)...${NC}"
+(sleep 60 && \
+ kubectl port-forward service/cassandra 9042:9042 -n cassandra > /dev/null 2>&1 & \
+ CASSANDRA_SYNC_PF_PID=$! && \
+ echo $CASSANDRA_SYNC_PF_PID > /tmp/cassandra-pf.pid && \
+ sleep 5 && \
+ CASSANDRA_HOST=localhost MINIO_ENDPOINT=$MINIO_ENDPOINT ./venv/bin/python3 serving_layer/cassandra_sync.py --once > /tmp/cassandra-sync.log 2>&1 && \
+ echo -e "${GREEN}✅ Initial Cassandra sync completed${NC}" && \
+ kill $CASSANDRA_SYNC_PF_PID 2>/dev/null) &
+SYNC_SCHEDULER_PID=$!
+echo -e "${GREEN}✅ Cassandra sync scheduled (PID: $SYNC_SCHEDULER_PID)${NC}"
+echo "   Logs: /tmp/cassandra-sync.log"
+echo ""
+
 echo -e "${GREEN}================================${NC}"
 echo -e "${GREEN}DEPLOYMENT COMPLETE! ✅${NC}"
 echo -e "${GREEN}================================${NC}"
@@ -183,9 +229,10 @@ echo -e "${CYAN}Running Processes:${NC}"
 echo "  - MinIO Port-Forward: PID $MINIO_PF_PID"
 echo "  - Batch Ingestion: PID $INGESTION_PID"
 echo "  - Event Producer: PID $PRODUCER_PID"
+echo "  - Cassandra Sync Scheduler: PID $SYNC_SCHEDULER_PID"
 echo ""
 echo -e "${CYAN}To Stop Background Processes:${NC}"
-echo "  kill \$(cat /tmp/minio-pf.pid) \$(cat /tmp/ingestion.pid) \$(cat /tmp/producer.pid)"
+echo "  kill \$(cat /tmp/minio-pf.pid) \$(cat /tmp/ingestion.pid) \$(cat /tmp/producer.pid) \$(cat /tmp/cassandra-pf.pid 2>/dev/null) 2>/dev/null || true"
 echo ""
 echo -e "${YELLOW}NEXT STEPS:${NC}"
 echo ""
@@ -203,5 +250,11 @@ echo "4. Monitor logs:"
 echo "   - Ingestion: tail -f /tmp/ingestion.log"
 echo "   - Producer: tail -f /tmp/producer.log"
 echo "   - Speed Layer: kubectl logs -f -l app=speed-layer"
+echo "   - Cassandra Sync: tail -f /tmp/cassandra-sync.log"
+echo ""
+echo "5. Access Cassandra:"
+echo "   - Port-forward: kubectl port-forward service/cassandra 9042:9042 -n cassandra"
+echo "   - Connect: kubectl exec -it cassandra-0 -n cassandra -- cqlsh"
+echo "   - Status: kubectl exec cassandra-0 -n cassandra -- nodetool status"
 echo ""
 echo -e "${GREEN}================================${NC}"

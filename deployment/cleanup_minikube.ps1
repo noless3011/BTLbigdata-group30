@@ -18,12 +18,14 @@ Write-Host "✅ Kafka deleted" -ForegroundColor Green
 Write-Host ""
 
 # 2. Delete MinIO and Kafka
-Write-Host "Deleting MinIO and Kafka..." -ForegroundColor Yellow
+Write-Host "Deleting MinIO, Kafka, and Cassandra..." -ForegroundColor Yellow
 kubectl delete namespace minio --ignore-not-found=$true
 kubectl delete namespace kafka --ignore-not-found=$true
+kubectl delete namespace cassandra --ignore-not-found=$true
 
-# Delete PVs
+# Delete PVs (Kafka and Cassandra)
 kubectl delete pv pv-kafka-0 pv-kafka-1 pv-kafka-2 --ignore-not-found=$true
+kubectl delete pvc --all -n cassandra --ignore-not-found=$true
 
 # Cleanup physical data on Minikube host
 Write-Host "Cleaning up physical data on Minikube host..." -ForegroundColor Yellow

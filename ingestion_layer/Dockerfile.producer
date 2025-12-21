@@ -1,0 +1,18 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install required packages
+RUN pip install --no-cache-dir \
+    kafka-python==2.0.2 \
+    faker==19.12.0 \
+    pytz==2023.3
+
+# Copy the producer script
+COPY producer.py /app/
+
+# Set environment variable to ensure prints appear in logs immediately
+ENV PYTHONUNBUFFERED=1
+
+# Default command
+CMD ["python", "producer.py"]
