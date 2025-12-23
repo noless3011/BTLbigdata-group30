@@ -1,77 +1,87 @@
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaNodePool
+apiVersion: v1
+kind: Namespace
 metadata:
-  name: kafka-node-pool
-  namespace: kafka
-  labels:
-    strimzi.io/cluster: kafka-cluster
+  name: minio
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-pvc
+  namespace: minio
 spec:
-  replicas: 3
-  roles:
-    - controller
-    - broker
+  accessModes:
+    - ReadWriteOnce
   resources:
     requests:
-      memory: 1Gi
-      cpu: 250m
-    limits:
-      memory: 1536Mi
-      cpu: 1000m
-  jvmOptions:
-    "-Xms": "512m"
-    "-Xmx": "1g"
-  storage:
-    type: jbod
-    volumes:
-      - id: 0
-        type: persistent-claim
-        size: 20Gi     
-        class: kafka-hostpath
-        deleteClaim: false
-        kraftMetadata: shared
+      storage: 50Gi
 ---
-
-apiVersion: kafka.strimzi.io/v1
-kind: Kafka
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: kafka-cluster
-  namespace: kafka
+  name: minio
+  namespace: minio
 spec:
-  kafka:
-    version: 4.1.1
-    metadataVersion: 4.1-IV1
-    listeners:
-      - name: plain
-        port: 9092
-        type: internal
-        tls: false
-      - name: tls
-        port: 9093
-        type: internal
-        tls: true
-      - name: external
-        port: 9094
-        type: nodeport
-        tls: false
-        configuration:
-          bootstrap:
-            nodePort: 30092
-    config:
-      offsets.topic.replication.factor: 3
-      transaction.state.log.replication.factor: 3
-      transaction.state.log.min.isr: 2
-      default.replication.factor: 3
-      min.insync.replicas: 2
-  entityOperator:
-    topicOperator:
-      resources:
-        requests:
-          memory: 256Mi
-        limits:
-          memory: 512Mi
-    userOperator:
-      resources:
-        requests:
-          memory: 256Mi
-        limits:
-          memory: 512Mi
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio:latest
+        args:
+        - server
+        - /data
+        - --console-address
+        - ":9001"
+        env:
+        - name: MINIO_ROOT_USER
+          value: "minioadmin"
+        - name: MINIO_ROOT_PASSWORD
+          value: "minioadmin"
+        - name: MINIO_PROMETHEUS_AUTH_TYPE
+          value: "public"
+        ports:
+        - containerPort: 9000
+          name: api
+        - containerPort: 9001
+          name: console
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: minio-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio
+  namespace: minio
+spec:
+  type: NodePort
+  ports:
+  - port: 9000
+    targetPort: 9000
+    nodePort: 30900
+    protocol: TCP
+    name: api
+  - port: 9001
+    targetPort: 9001
+    nodePort: 30901
+    protocol: TCP
+    name: console
+  selector:
+    app: minio

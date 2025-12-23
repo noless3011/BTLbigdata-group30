@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # Port-forward script for Kubernetes services
-# This script runs all port-forwards in the background using nohup
-# so they persist even after SSH disconnection
+# Updated for Split Architecture (MinIO/Cassandra/UI)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="${SCRIPT_DIR}/portforward-logs"
@@ -22,7 +21,7 @@ start_portforward() {
     local NAMESPACE=$2
     local LOCAL_PORT=$3
     local REMOTE_PORT=$4
-    local RESOURCE_TYPE=${5:-service}  # Default to 'service', can be 'pod', 'deployment', etc.
+    local RESOURCE_TYPE=${5:-service}
 
     echo "Starting port-forward: ${SERVICE_NAME} (${NAMESPACE}) ${LOCAL_PORT}:${REMOTE_PORT}"
 
@@ -37,7 +36,9 @@ start_portforward() {
     echo "  -> PID: $! (saved to ${SERVICE_NAME}-${LOCAL_PORT}.pid)"
 }
 
-# Stop any existing port-forwards
+# ---------------------------------------------------------
+# 1. CLEANUP: Stop any existing port-forwards
+# ---------------------------------------------------------
 echo ""
 echo "Stopping any existing port-forwards..."
 if [ -d "$PID_DIR" ]; then
@@ -59,29 +60,42 @@ echo ""
 echo "Starting new port-forwards..."
 echo ""
 
-# 1. Kafka Bootstrap Server (external access)
-start_portforward "kafka-cluster-kafka-bootstrap" "kafka" 9092 9092 "service"
+# ---------------------------------------------------------
+# 2. INFRASTRUCTURE (Kafka, MinIO, Cassandra)
+# ---------------------------------------------------------
 
-# 2. Kafka UI/Management (if you want to use external tools)
+# Kafka
+start_portforward "kafka-cluster-kafka-bootstrap" "kafka" 9092 9092 "service"
 start_portforward "kafka-cluster-kafka-bootstrap" "kafka" 9093 9093 "service"
 
-# 3. MinIO API
+# MinIO
 start_portforward "minio" "minio" 9000 9000 "service"
-
-# 4. MinIO Console (Web UI)
 start_portforward "minio" "minio" 9001 9001 "service"
 
-# 5. Serving Layer UI (Streamlit Dashboard)
-start_portforward "serving-layer" "default" 8501 8501 "service"
-
-# 6. Serving Layer API
-start_portforward "serving-layer" "default" 8000 8000 "service"
-
-# 7. Cassandra CQL Port
-# Note: Cassandra is accessed via service in cassandra namespace
+# Cassandra
 start_portforward "cassandra" "cassandra" 9042 9042 "service"
 
-# Wait for all processes to start
+
+# ---------------------------------------------------------
+# 3. SERVING LAYER (UI & APIs)
+# ---------------------------------------------------------
+
+# Serving Layer UI (Streamlit)
+start_portforward "serving-ui" "default" 8501 8501 "service"
+
+# Serving Layer API - MinIO Backend
+# Mapping local 8001 -> container 8000
+start_portforward "serving-api-minio" "default" 8001 8000 "service"
+
+# Serving Layer API - Cassandra Backend
+# Mapping local 8002 -> container 8000
+start_portforward "serving-api-cassandra" "default" 8002 8000 "service"
+
+
+# ---------------------------------------------------------
+# 4. SUMMARY
+# ---------------------------------------------------------
+# Wait for processes to stabilize
 sleep 3
 
 echo ""
@@ -90,17 +104,15 @@ echo "Port-forwarding setup complete!"
 echo "========================================"
 echo ""
 echo "Access your services at:"
-echo "  - Kafka Bootstrap:        <your-server-ip>:9092"
-echo "  - Kafka TLS:              <your-server-ip>:9093"
-echo "  - MinIO API:              http://<your-server-ip>:9000"
-echo "  - MinIO Console:          http://<your-server-ip>:9001"
-echo "  - Serving Layer UI:       http://<your-server-ip>:8501"
-echo "  - Serving Layer API:      http://<your-server-ip>:8000"
-echo "  - Cassandra CQL:          <your-server-ip>:9042"
+echo "  - Serving Layer UI:       http://157.245.202.83:8501"
+echo "  - API (MinIO Backend):    http://157.245.202.83:8001"
+echo "  - API (Cassandra Backend):http://157.245.202.83:8002"
+echo ""
+echo "Infrastructure:"
+echo "  - MinIO Console:          http://157.245.202.83:9001"
+echo "  - Cassandra CQL:          157.245.202.83:9042"
+echo "  - Kafka Bootstrap:        157.245.202.83:9092"
 echo ""
 echo "Log files are in: $LOG_DIR"
-echo "PID files are in: $PID_DIR"
-echo ""
-echo "To stop all port-forwards, run:"
-echo "  ./port-stop.sh"
+echo "To stop, run: ./port-stop.sh (or kill PIDs in $PID_DIR)"
 echo ""

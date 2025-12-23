@@ -1,20 +1,87 @@
+# ==========================================
+# 1. Serving API - MinIO Backend (Parquet)
+# ==========================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: serving-layer
-    namespace: default
+    name: serving-api-minio
+    labels:
+        app: serving-api-minio
 spec:
     replicas: 1
     selector:
         matchLabels:
-            app: serving-layer
+            app: serving-api-minio
     template:
         metadata:
             labels:
-                app: serving-layer
+                app: serving-api-minio
         spec:
             containers:
-                - name: serving-api
+                - name: api
+                  image: serving-layer:latest
+                  imagePullPolicy: Never
+                  command:
+                      [
+                          "uvicorn",
+                          "serving_layer.serving_layer:app",
+                          "--host",
+                          "0.0.0.0",
+                          "--port",
+                          "8000",
+                          "--log-level",
+                          "info",
+                          "--access-log",
+                      ]
+                  ports:
+                      - containerPort: 8000
+                  env:
+                      - name: MINIO_ENDPOINT
+                        value: "http://minio.minio.svc:9000"
+                      - name: MINIO_ACCESS_KEY
+                        value: "minioadmin"
+                      - name: MINIO_SECRET_KEY
+                        value: "minioadmin"
+                  resources:
+                      limits:
+                          memory: "512Mi"
+                          cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: serving-api-minio
+spec:
+    selector:
+        app: serving-api-minio
+    ports:
+        - protocol: TCP
+          port: 8000
+          targetPort: 8000
+
+
+# ==========================================
+# 2. Serving API - Cassandra Backend
+# ==========================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: serving-api-cassandra
+    labels:
+        app: serving-api-cassandra
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: serving-api-cassandra
+    template:
+        metadata:
+            labels:
+                app: serving-api-cassandra
+        spec:
+            containers:
+                - name: api
                   image: serving-layer:latest
                   imagePullPolicy: Never
                   command:
@@ -24,34 +91,55 @@ spec:
                           "--host",
                           "0.0.0.0",
                           "--port",
-                          "8000",
+                          "8001",
                       ]
                   ports:
-                      - containerPort: 8000
+                      - containerPort: 8001
                   env:
-                      - name: TZ
-                        value: "Asia/Ho_Chi_Minh"
-                      - name: PYTHONPATH
-                        value: "/app"
                       - name: CASSANDRA_HOST
-                        value: "cassandra.cassandra.svc.cluster.local"
+                        value: "cassandra.cassandra.svc.cluster.local" # Adjust if your cassandra service name differs
                       - name: CASSANDRA_PORT
                         value: "9042"
-                      - name: MINIO_ENDPOINT
-                        value: "http://minio.minio.svc:9000"
-                      - name: MINIO_ACCESS_KEY
-                        value: "minioadmin"
-                      - name: MINIO_SECRET_KEY
-                        value: "minioadmin"
                   resources:
                       limits:
-                          memory: "1Gi"
-                          cpu: "1000m"
-                      requests:
                           memory: "512Mi"
-                          cpu: "250m"
+                          cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: serving-api-cassandra
+spec:
+    selector:
+        app: serving-api-cassandra
+    ports:
+        - protocol: TCP
+          port: 8001
+          targetPort: 8001
 
-                - name: serving-ui
+
+# ==========================================
+# 3. Streamlit UI (Frontend)
+# ==========================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: serving-ui
+    labels:
+        app: serving-ui
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: serving-ui
+    template:
+        metadata:
+            labels:
+                app: serving-ui
+        spec:
+            containers:
+                - name: ui
                   image: serving-layer:latest
                   imagePullPolicy: Never
                   command:
@@ -63,39 +151,85 @@ spec:
                           "8501",
                           "--server.address",
                           "0.0.0.0",
-                          "--server.enableCORS",
-                          "false",
                       ]
                   ports:
                       - containerPort: 8501
                   env:
-                      - name: TZ
-                        value: "Asia/Ho_Chi_Minh"
-                      - name: API_URL
-                        value: "http://localhost:8000"
+                      # Point to the internal Kubernetes DNS names of the services defined above
+                      - name: API_URL_BATCH # Changed from API_URL_MINIO
+                        value: "http://serving-api-minio:8000"
+                      - name: API_URL_SPEED # Changed from API_URL_CASSANDRA
+                        value: "http://serving-api-cassandra:8001"
                   resources:
                       limits:
-                          memory: "1Gi"
-                          cpu: "1000m"
-                      requests:
                           memory: "512Mi"
-                          cpu: "250m"
-
+                          cpu: "500m"
 ---
 apiVersion: v1
 kind: Service
 metadata:
-    name: serving-layer
-    namespace: default
+    name: serving-ui
 spec:
     type: NodePort
     selector:
-        app: serving-layer
+        app: serving-ui
     ports:
-        - name: ui
+        - protocol: TCP
           port: 8501
           targetPort: 8501
           nodePort: 30001
-        - name: api
-          port: 8000
-          targetPort: 8000
+
+
+# ==========================================
+# 4. Cassandra Sync Worker (Background)
+# ==========================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: cassandra-sync
+    labels:
+        app: cassandra-sync
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            app: cassandra-sync
+    template:
+        metadata:
+            labels:
+                app: cassandra-sync
+        spec:
+            initContainers:
+                # Optional: Init container to ensure Schema is created before sync starts
+                - name: init-schema
+                  image: serving-layer:latest
+                  imagePullPolicy: Never
+                  command: ["python", "serving_layer/init_cassandra_schema.py"]
+                  env:
+                      - name: CASSANDRA_HOST
+                        value: "cassandra.cassandra.svc.cluster.local"
+                      - name: CASSANDRA_PORT
+                        value: "9042"
+            containers:
+                - name: sync
+                  image: serving-layer:latest
+                  imagePullPolicy: Never
+                  command: ["python", "serving_layer/cassandra_sync.py"]
+                  env:
+                      - name: CASSANDRA_HOST
+                        value: "cassandra.cassandra.svc.cluster.local"
+                      - name: CASSANDRA_PORT
+                        value: "9042"
+                      - name: MINIO_ENDPOINT
+                        value: "http://minio.minio.svc:9000"
+                      - name: MINIO_ACCESS_KEY
+                        value: "minioadmin"
+                      - name: MINIO_SECRET_KEY
+                        value: "minioadmin"
+                      - name: SYNC_INTERVAL
+                        value: "60" # Sync every minute
+                  resources:
+                      limits:
+                          memory: "512Mi"
+                          cpu: "500m"

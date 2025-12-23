@@ -25,7 +25,7 @@ MINIO_ACCESS_KEY = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
 CASSANDRA_HOST = "cassandra.cassandra.svc.cluster.local"
 CASSANDRA_PORT = "9042"
-CASSANDRA_KEYSPACE = "speed_layer"
+CASSANDRA_KEYSPACE = "university_analytics"
 
 # Initialize Spark Session
 jar_list = "/app/jars/hadoop-aws-3.3.4.jar,/app/jars/aws-java-sdk-bundle-1.12.262.jar"
@@ -186,7 +186,7 @@ def write_to_dual_storage(batch_df, epoch_id, s3_folder, cassandra_table):
 query_dau = (
     rt_active_users.writeStream.foreachBatch(
         lambda df, epoch: write_to_dual_storage(
-            df, epoch, "active_users", "realtime_active_users"
+            df, epoch, "active_users", "active_users"
         )
     )
     .option("checkpointLocation", "s3a://bucket-0/checkpoints/active_users")
@@ -198,7 +198,7 @@ query_dau = (
 query_course = (
     rt_course_popularity.writeStream.foreachBatch(
         lambda df, epoch: write_to_dual_storage(
-            df, epoch, "course_popularity", "realtime_course_popularity"
+            df, epoch, "course_popularity", "course_popularity"
         )
     )
     .option("checkpointLocation", "s3a://bucket-0/checkpoints/course_popularity")
@@ -210,7 +210,7 @@ query_course = (
 query_video = (
     rt_video_engagement.writeStream.foreachBatch(
         lambda df, epoch: write_to_dual_storage(
-            df, epoch, "video_engagement", "realtime_video_engagement"
+            df, epoch, "video_engagement", "video_engagement"
         )
     )
     .option("checkpointLocation", "s3a://bucket-0/checkpoints/video_engagement")
